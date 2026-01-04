@@ -1,0 +1,4 @@
+"DESCRIPTION","DURATION IN MS","NAME","PARENT SUITE","START TIME","STATUS","STOP TIME","SUB SUITE","SUITE","TEST CLASS","TEST METHOD"
+"As a QA Engineer
+  I want to automate navigation and interaction with the Blankfactor website
+  So that I can verify key functionality and content","9970","Navigate through Blankfactor website and verify content","","Sun Jan 04 20:18:40 UTC 2026","passed","Sun Jan 04 20:18:50 UTC 2026","","","",""
