@@ -1,56 +1,64 @@
 import { Given, When, Then, BeforeStep } from '@cucumber/cucumber';
 import { expect } from '@playwright/test';
 import { CustomWorld } from '../support/world';
-import { BlankfactorPage } from '../pages/blankfactor.page';
+// import { BlankfactorPage } from '../pages/blankfactor.page';
+import { HomePage } from '../pages/homepage.page';
+import { RetirementPage } from '../pages/retirement.page';
+import { ContactPage } from '../pages/contact.page';
 
+let hpPage: HomePage;
+let rpPage: RetirementPage;
+let ctPage: ContactPage;
 
-let bfPage: BlankfactorPage;
-
-BeforeStep(async function (this:CustomWorld) {
-  bfPage = await this.getPage(BlankfactorPage);
+BeforeStep(async function (this: CustomWorld) {
+  [hpPage, rpPage, ctPage] = await Promise.all([
+    this.getPage(HomePage),
+    this.getPage(RetirementPage),
+    this.getPage(ContactPage),
+  ]);
 });
 
 Given('I navigate to {string}', async function (this: CustomWorld, url: string) {
-  await bfPage.goto(url);
+  await hpPage.goto(url);
 });
 
 When('I hover to Industries section', async function (this: CustomWorld) {
-  await bfPage.hoverOnIndustries();
+  await hpPage.hoverOnIndustries();
 });
 
 When('I open the {string} section', async function (this: CustomWorld, sectionName: string) {
-  await bfPage.openSection(sectionName);
+  await hpPage.openSection(sectionName);
 });
 
 When('I scroll down to the {string} section', async function (this: CustomWorld, sectionHeading: string) {
-  await bfPage.scrollToSection(sectionHeading);
+  await rpPage.scrollToSection(sectionHeading);
 });
 
 Then('I should be able to copy text from tile {string} by hovering', async function (this: CustomWorld, tileName: string) {
-  const copiedText = await bfPage.hoverAndCopyTextFromTile(tileName);
+  const copiedText = await rpPage.hoverAndCopyTextFromTile(tileName);
   this.setData('copiedText', copiedText);
 });
 
 When('I scroll to the bottom of the page', async function (this: CustomWorld) {
-  await bfPage.scrollToBottom();
+  await rpPage.scrollToBottom();
 });
 
 When('I click on the {string} button', async function (this: CustomWorld, buttonText: string) {
-  await bfPage.clickButton(buttonText);
+  await rpPage.clickButton(buttonText);
 });
 
 Then('I should verify the page URL', async function (this: CustomWorld) {
-  const currentUrl = await bfPage.getCurrentUrl();
+  const currentUrl = await ctPage.getCurrentUrl();
   expect(currentUrl).toContain('https://blankfactor.com/contact/');
 });
 
 Then('I should verify the page title', async function (this: CustomWorld) {
-  const title = await bfPage.getPageTitle();
+  const title = await ctPage.getPageTitle();
   this.setData('pageTitle', title);
   expect(title).toBe('Contact | Blankfactor');
 });
 
 Then('I should print the title text', async function (this: CustomWorld) {
   console.log('PAGE TITLE:');
-  await bfPage.printHighlight(this.getData('pageTitle'));
+  await ctPage.printHighlight(this.getData('pageTitle'));
 });

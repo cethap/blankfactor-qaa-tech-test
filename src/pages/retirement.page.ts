@@ -1,48 +1,12 @@
 import { Page, Locator } from '@playwright/test';
+import BasePage from '../core/basePage';
 
-export class BlankfactorPage {
-
-  readonly page: Page;
-  readonly industriesLink: Locator;
-  readonly retirementAndWealthLink: Locator;
+export class RetirementPage extends BasePage {
   readonly letsGetStartedButton: Locator;
 
   constructor(page: Page) {
-    this.page = page;
-    this.industriesLink = page.getByRole('navigation').getByRole('link', { name: 'Industries' });
-    this.retirementAndWealthLink = page.getByRole('link', { name: 'Retirement and Wealth' });
+    super(page);
     this.letsGetStartedButton = page.locator('a:has-text("Let\'s get started")').first();
-  }
-
-  async goto(url: string) {
-    await this.page.goto(url, { waitUntil: 'domcontentloaded' });
-    console.log(`Navigated to: ${url}`);
-  }
-
-  async hoverOnIndustries() {
-    await this.industriesLink.waitFor({ timeout: 10000 });
-    await this.industriesLink.hover();
-
-    console.log('Hovered over Industries section');
-
-    await this.page.waitForLoadState('domcontentloaded');
-    await this.page.waitForTimeout(1000);
-  }
-
-  getSectionLink(sectionName: string): Locator {
-    return this.page.getByRole('link', { name: sectionName });
-  }
-
-  async openSection(sectionName: string) {
-    const sectionLink = this.getSectionLink(sectionName);
-    await sectionLink.waitFor({ timeout: 10000 });
-    await sectionLink.click();
-
-    console.log(`Opened ${sectionName} section`);
-
-    await this.page.waitForLoadState('domcontentloaded');
-    // Animation wait
-    await this.page.waitForTimeout(1000);
   }
 
   getSectionHeading(headingText: string): Locator {
@@ -109,14 +73,15 @@ export class BlankfactorPage {
     console.log(`Clicked on button: ${buttonText}`);
 
     await this.page.waitForLoadState('domcontentloaded');
-    await this.page.waitForTimeout(2000);
+    // Animation stabilization wait
+    await this.page.waitForTimeout(1000);
   }
 
   async getCurrentUrl(): Promise<string> {
     const currentUrl = this.page.url();
 
     console.log(`Current Page URL: ${currentUrl}`);
-    
+
     return currentUrl;
   }
 
@@ -124,18 +89,7 @@ export class BlankfactorPage {
     const title = await this.page.title();
 
     console.log(`Page Title: ${title}`);
-    
+
     return title;
-  }
-
-  printHighlight(message?: string) {
-    console.log('='.repeat(50));
-    console.log(message);
-    console.log('='.repeat(50));
-  }
-
-  // for debugging
-  async pause() {
-    await this.page.pause();
   }
 }
