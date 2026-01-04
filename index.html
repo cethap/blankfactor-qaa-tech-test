@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Allure Test Reports</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #fff;
+            min-height: 100vh;
+            padding: 2rem;
+            color: #000;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        header {
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 2rem;
+            margin-bottom: 2rem;
+        }
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        .subtitle {
+            font-size: 1rem;
+            color: #666;
+        }
+        .content { padding: 1rem 0; }
+        .latest-report {
+            border: 1px solid #ddd;
+            padding: 1.5rem;
+            margin-bottom: 3rem;
+        }
+        .latest-report h2 {
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+        .btn {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background: #000;
+            color: #fff;
+            text-decoration: none;
+            font-weight: 500;
+            border: 1px solid #000;
+        }
+        .btn:hover {
+            background: #fff;
+            color: #000;
+        }
+        .reports-list { margin-top: 2rem; }
+        .reports-list h2 {
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #ddd;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+        .report-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .report-card {
+            border: 1px solid #ddd;
+            padding: 1.5rem;
+        }
+        .report-card:hover {
+            border-color: #000;
+        }
+        .report-card h3 {
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        .report-card p {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+        .report-card a {
+            color: #000;
+            text-decoration: underline;
+            font-weight: 500;
+        }
+        .report-card a:hover {
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Allure Test Reports</h1>
+            <p class="subtitle">BDD Automation Testing with Playwright and Cucumber</p>
+        </header>
+        <div class="content">
+            <div class="latest-report">
+                <h2>Latest Report</h2>
+                <a href="#" id="latestLink" class="btn">View Latest Report</a>
+            </div>
+            <div class="reports-list">
+                <h2>Historical Reports</h2>
+                <div class="report-grid" id="reports"></div>
+            </div>
+        </div>
+    </div>
+    <script>
+        async function loadReports() {
+            const container = document.getElementById('reports');
+            try {
+                const response = await fetch('reports/builds.json');
+                if (!response.ok) {
+                    throw new Error('Failed to load builds');
+                }
+                const builds = await response.json();
+
+                if (builds.length === 0) {
+                    container.innerHTML = '<p style="text-align: center; color: #6c757d;">No historical reports available yet.</p>';
+                    return;
+                }
+
+                // Set the latest report link to the first build's URL
+                if (builds.length > 0) {
+                    const latestLink = document.getElementById('latestLink');
+                    latestLink.href = `reports/${builds[0].url}`;
+                }
+
+                builds.forEach(build => {
+                    const card = document.createElement('div');
+                    card.className = 'report-card';
+
+                    // Parse timestamp format: 2026-01-03_11-30-45
+                    let dateStr = 'Unknown date';
+                    if (build.timestamp) {
+                        const parts = build.timestamp.split('_');
+                        if (parts.length === 2) {
+                            const datePart = parts[0];
+                            const timePart = parts[1].replace(/-/g, ':');
+                            const isoDate = `${datePart}T${timePart}`;
+                            const date = new Date(isoDate);
+                            if (!isNaN(date.getTime())) {
+                                dateStr = date.toLocaleDateString('en-US', {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                });
+                            }
+                        }
+                    }
+
+                    card.innerHTML = `
+                        <h3>Build #${build.number}</h3>
+                        <p style="font-size: 0.85rem; color: #999; margin-bottom: 0.5rem;">${dateStr}</p>
+                        <p>Test execution report for build ${build.number}</p>
+                        <a href="reports/${build.url}" target="_blank">View Report →</a>
+                        <br/>
+                        <a href="https://trace.playwright.dev/?trace=https://cethap.github.io/blankfactor-qa-automation/${build.attachment}" target="_blank">View Trace viewer →</a>
+                    `;
+                    container.appendChild(card);
+                });
+            } catch (error) {
+                console.error('Error loading reports:', error);
+                container.innerHTML = '<p style="text-align: center; color: #dc3545;">Error loading reports list. Please check back later.</p>';
+            }
+        }
+        loadReports();
+    </script>
+</body>
+</html>
