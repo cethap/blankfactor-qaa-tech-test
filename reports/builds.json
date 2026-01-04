@@ -1,5 +1,12 @@
 [
   {
+    "number": 5,
+    "path": "build-5",
+    "url": "build-5/5/index.html",
+    "timestamp": "2026-01-04_20-24-12",
+    "attachment": "reports/build-5/5/data/attachments/1c826afbe0a8e939.zip"
+  },
+  {
     "number": 4,
     "path": "build-4",
     "url": "build-4/4/index.html",
