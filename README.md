@@ -2,6 +2,12 @@
 
 BDD-style automated testing framework using Playwright, Cucumber, and TypeScript with Page Object Model architecture.
 
+First that all you need to know that this project builds expose a static website with the Allure report:
+
+See this link to view the history of Allure report: **https://cethap.github.io/blankfactor-qaa-tech-test/**
+
+You can also view the trace viewer for each test run by clicking on view trace viewer link.
+
 ## Features
 
 - ✅ **BDD Framework** - Cucumber.js with Gherkin syntax
