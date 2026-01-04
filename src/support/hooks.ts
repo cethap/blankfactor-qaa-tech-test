@@ -79,7 +79,7 @@ After(async function (this: CustomWorld, { result, pickle }) {
     const tracePath = path.join(tracesDir, `trace-${scenarioName}-${timestamp}.zip`);
     await this.context.tracing.stop({ path: tracePath });
 
-    // Attach trace to report
+    // Attach trace to Allure report
     if (fs.existsSync(tracePath)) {
       const traceBuffer = fs.readFileSync(tracePath);
       // Use application/zip to ensure proper handling

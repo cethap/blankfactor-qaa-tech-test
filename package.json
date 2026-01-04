@@ -9,6 +9,9 @@
     "test:report": "cucumber-js --format html:reports/cucumber-report.html",
     "test:debug": "cucumber-js --fail-fast",
     "test:ci": "cucumber-js --format json:reports/cucumber-report.json",
+    "test:allure": "cucumber-js --format @cucumber/cucumber:reports/cucumber-report.xml --format allure-cucumberjs:reports/allure-results",
+    "allure:generate": "allure generate reports/allure-results --clean -o reports/allure-report",
+    "allure:serve": "allure serve reports/allure-results",
     "docker:build": "docker build -t blankfactor .",
     "docker:test": "npm run docker:build && docker run --rm -it blankfactor"
   },
@@ -19,6 +22,8 @@
     "@cucumber/cucumber": "^12.5.0",
     "@playwright/test": "^1.40.1",
     "@types/node": "^20.10.6",
+    "allure-commandline": "^2.36.0",
+    "allure-cucumberjs": "^3.4.3",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   }

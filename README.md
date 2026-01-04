@@ -7,7 +7,7 @@ BDD-style automated testing framework using Playwright, Cucumber, and TypeScript
 - ✅ **BDD Framework** - Cucumber.js with Gherkin syntax
 - ✅ **Page Object Model** - Scalable and maintainable architecture
 - ✅ **CI/CD** - GitHub Actions workflow
-- ✅ **Multiple Reports** - HTML, JSON, XML formats
+- ✅ **Multiple Reports** - HTML, JSON, XML formats, Allure report
 - ✅ **Screenshots on Failure** - Automatic capture and upload
 - ✅ **Parallel Execution** - Fast test runs
 - ✅ **Playwright Trace Viewer** - One-click trace debugging in browser
@@ -143,18 +143,24 @@ The project includes a complete CI/CD pipeline:
 
 ### Playwright Trace Viewer Integration
 
-All test scenarios automatically capture Playwright traces. When viewing reports on GitHub Pages, clicking on a `trace.zip` attachment automatically opens it in the [Playwright Trace Viewer](https://trace.playwright.dev/).
+All test scenarios automatically capture Playwright traces. When viewing Allure reports on GitHub Pages, clicking on a `trace.zip` attachment automatically opens it in the [Playwright Trace Viewer](https://trace.playwright.dev/).
 
 **How it works:**
 1. Every test scenario records a trace with screenshots, snapshots, and network activity
-2. Traces are attached to the report
+2. Traces are attached to the Allure report
 3. Click any trace.zip attachment in the report
 4. Automatically redirects to `https://trace.playwright.dev/?trace={GITHUB_PAGES_URL}`
 5. Debug the test execution timeline, DOM snapshots, network requests, and console logs
 
 **Local trace viewing:**
 ```bash
-# View a specific trace file directly
+# Generate report with traces
+npm run allure:generate
+
+# Serve the report locally
+npm run allure:serve
+
+# Or view a specific trace file directly
 npx playwright show-trace reports/traces/trace-*.zip
 ```
 
