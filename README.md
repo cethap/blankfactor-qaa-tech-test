@@ -196,13 +196,6 @@ When('I navigate to Industries section', { timeout: 60 * 1000 * 10 }, async func
 HEADLESS=false npm test
 ```
 
-## Resources
-
-- 📚 [Page Object Model Guide](features/pages/README.md)
-- 🐳 [Docker & CI/CD Guide](DOCKER.md)
-- 🎭 [Playwright Docs](https://playwright.dev)
-- 🥒 [Cucumber Docs](https://cucumber.io/docs/cucumber/)
-
 ## License
 
 ISC
