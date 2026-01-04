@@ -1,7 +1,6 @@
 import { Given, When, Then, BeforeStep } from '@cucumber/cucumber';
 import { expect } from '@playwright/test';
 import { CustomWorld } from '../support/world';
-// import { BlankfactorPage } from '../pages/blankfactor.page';
 import { HomePage } from '../pages/homepage.page';
 import { RetirementPage } from '../pages/retirement.page';
 import { ContactPage } from '../pages/contact.page';
