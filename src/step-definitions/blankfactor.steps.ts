@@ -38,6 +38,12 @@ Then('I should be able to copy text from tile {string} by hovering', async funct
   this.setData('copiedText', copiedText);
 });
 
+Then('I should validate the copied text contains the tile description', async function (this: CustomWorld) {
+  const copiedText = this.getData('copiedText');
+  expect(copiedText).toContain('Automate your operations and get to market quickly and securely. Leverage predictive data analytics using machine learning to build reliable, yet forward-thinking financial solutions.');
+});
+
+
 When('I scroll to the bottom of the page', async function (this: CustomWorld) {
   await rpPage.scrollToBottom();
 });

@@ -19,9 +19,6 @@ export class RetirementPage extends BasePage {
     await sectionElement.scrollIntoViewIfNeeded();
 
     console.log(`Scrolled to section: ${sectionHeading}`);
-
-    // Animation stabilization wait
-    await this.page.waitForTimeout(1000);
   }
 
   getTile(tileName: string): Locator {
@@ -38,7 +35,6 @@ export class RetirementPage extends BasePage {
 
     await tile.hover();
     console.log(`Hovered over tile: ${tileName}`);
-    await this.page.waitForTimeout(1000);
 
     const tileContainer = this.getTileContainer(tileName);
     const text = await tileContainer.textContent();
@@ -54,10 +50,6 @@ export class RetirementPage extends BasePage {
     await this.page.evaluate(() => {
       window.scrollTo(0, document.body.scrollHeight);
     });
-
-    console.log('Scrolled to bottom of page');
-
-    await this.page.waitForTimeout(1000);
   }
 
   getButton(buttonText: string): Locator {
@@ -73,8 +65,6 @@ export class RetirementPage extends BasePage {
     console.log(`Clicked on button: ${buttonText}`);
 
     await this.page.waitForLoadState('domcontentloaded');
-    // Animation stabilization wait
-    await this.page.waitForTimeout(1000);
   }
 
   async getCurrentUrl(): Promise<string> {

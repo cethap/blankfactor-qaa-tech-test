@@ -14,9 +14,6 @@ export class HomePage extends BasePage {
   async hoverOnIndustries() {
     await this.industriesLink.waitFor({ timeout: 10000 });
     await this.industriesLink.hover();
-
-    // Animation wait
-    await this.page.waitForTimeout(1000);
     console.log('Hovered over Industries section');
   }
 
@@ -32,7 +29,5 @@ export class HomePage extends BasePage {
     console.log(`Opened ${sectionName} section`);
 
     await this.page.waitForLoadState('domcontentloaded');
-    // Animation wait
-    await this.page.waitForTimeout(1000);
   }
 }
