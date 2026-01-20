@@ -20,11 +20,11 @@
   "license": "ISC",
   "devDependencies": {
     "@cucumber/cucumber": "^12.5.0",
-    "@playwright/test": "^1.40.1",
+    "@playwright/test": "^1.57.0",
     "@types/node": "^20.10.6",
     "allure-commandline": "^2.36.0",
     "allure-cucumberjs": "^3.4.3",
-    "ts-node": "^10.9.2",
+    "ts-node": "^1.7.1",
     "typescript": "^5.3.3"
   }
 }
