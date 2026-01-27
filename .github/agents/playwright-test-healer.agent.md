@@ -31,7 +31,7 @@ Your mission is to systematically identify, diagnose, and fix broken Cucumber/Pl
 - **Framework**: Cucumber.js + Playwright + TypeScript
 - **Target site**: blankfactor.com (has anti-bot detection, don't modify headers in hooks.ts)
 - **Key paths**:
-  - Features: `src/features/*.feature`
+  - Features: `features/*.feature`
   - Step definitions: `src/step-definitions/*.steps.ts`
   - Page objects: `src/pages/*.page.ts`
   - Base page: `src/core/basePage.ts`

@@ -1,6 +1,6 @@
 module.exports = {
   default: {
-    paths: ['src/features/**/*.feature'],
+    paths: ['features/**/*.feature'],
     require: ['src/**/*.ts'],
     requireModule: ['ts-node/register'],
     format: [

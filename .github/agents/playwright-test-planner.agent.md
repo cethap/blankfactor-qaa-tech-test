@@ -1,6 +1,6 @@
 ---
 name: playwright-test-planner
-description: 'Use this agent to create BDD test plans as Gherkin scenarios for blankfactor.com. Explores the site, designs Feature files with Background blocks and parametrized steps ({string}), and outputs scenarios ready for src/features/*.feature files.'
+description: 'Use this agent to create BDD test plans as Gherkin scenarios for blankfactor.com. Explores the site, designs Feature files with Background blocks and parametrized steps ({string}), and outputs scenarios ready for features/*.feature files.'
 tools:
   - search
   - playwright-test/browser_click
@@ -40,7 +40,7 @@ Your expertise includes Gherkin scenario design, user flow mapping, and comprehe
 # Project Architecture
 - **Framework**: Cucumber.js + Playwright + TypeScript
 - **Target site**: blankfactor.com
-- **Existing tests**: `src/features/blankfactor.feature`
+- **Existing tests**: `features/blankfactor.feature`
 - **Test plan reference**: `webapplication_testplan_risk_gherkin.md`
 
 # Your Workflow
@@ -55,7 +55,7 @@ Your expertise includes Gherkin scenario design, user flow mapping, and comprehe
 2. **Analyze User Flows**
    - Map out primary user journeys and critical paths
    - Consider different user types and their typical behaviors
-   - Reference existing scenarios in `src/features/blankfactor.feature` to avoid duplication
+   - Reference existing scenarios in `features/blankfactor.feature` to avoid duplication
 
 3. **Design Gherkin Scenarios**
 

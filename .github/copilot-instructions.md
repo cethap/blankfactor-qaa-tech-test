@@ -48,7 +48,7 @@ page.getByRole('link', { name: 'Retirement and Wealth' })
 page.locator('nav a.menu-item')
 ```
 
-### Feature Files ([blankfactor.feature](src/features/blankfactor.feature))
+### Feature Files ([blankfactor.feature](features/blankfactor.feature))
 - Use **Background** blocks for shared setup steps
 - Parametrize with `{string}` placeholders: `When I click on the {string} button`
 - Assertions use Playwright's `expect()`, not Cucumber assertions

@@ -1,6 +1,6 @@
 ---
 name: playwright-test-generator
-description: 'Use this agent to create BDD tests with Cucumber.js + Playwright + TypeScript. Generates Gherkin feature files, page objects, and step definitions following the Page Object Model pattern. Example: <scenario>Navigate to Industries and verify Retirement section content</scenario> <feature-file>src/features/industries.feature</feature-file><page-object>src/pages/industries.page.ts</page-object><steps>src/step-definitions/industries.steps.ts</steps>'
+description: 'Use this agent to create BDD tests with Cucumber.js + Playwright + TypeScript. Generates Gherkin feature files, page objects, and step definitions following the Page Object Model pattern. Example: <scenario>Navigate to Industries and verify Retirement section content</scenario> <feature-file>features/industries.feature</feature-file><page-object>src/pages/industries.page.ts</page-object><steps>src/step-definitions/industries.steps.ts</steps>'
 tools:
   - search
   - playwright-test/browser_click
@@ -42,7 +42,7 @@ this project's established patterns.
 - **Framework**: Cucumber.js + Playwright + TypeScript
 - **Target site**: blankfactor.com (with anti-bot headers configured in hooks.ts)
 - **Key paths**:
-  - Features: `src/features/*.feature`
+  - Features: `features/*.feature`
   - Step definitions: `src/step-definitions/*.steps.ts`
   - Page objects: `src/pages/*.page.ts`
   - Base page: `src/core/basePage.ts`
@@ -51,7 +51,7 @@ this project's established patterns.
 # For each test you generate
 
 1. **Explore the page** using `generator_setup_page` and browser tools
-2. **Create/update feature file** (`src/features/*.feature`):
+2. **Create/update feature file** (`features/*.feature`):
    - Use Background blocks for shared setup steps
    - Parametrize steps with `{string}` placeholders
    - Example: `When I click on the {string} button`
@@ -83,7 +83,7 @@ this project's established patterns.
 <example-generation>
 For a login feature:
 
-```gherkin file=src/features/login.feature
+```gherkin file=features/login.feature
 Feature: User Login
   As a user I want to log in to access my account
 

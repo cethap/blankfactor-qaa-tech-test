@@ -105,8 +105,8 @@ jobs:
       - name: Prepare directories
         if: github.ref == 'refs/heads/main'
         run: |
-          chmod +x .github/scripts/prepare-directories.sh
-          OUTPUT=$(.github/scripts/prepare-directories.sh ${{ github.run_number }})
+          chmod +x .github/workflows/scripts/prepare-directories.sh
+          OUTPUT=$(.github/workflows/scripts/prepare-directories.sh ${{ github.run_number }})
           echo "$OUTPUT" >> $GITHUB_ENV
 
       - name: Generate Allure Report
@@ -119,12 +119,12 @@ jobs:
       - name: Organize reports
         if: github.ref == 'refs/heads/main'
         run: |
-          chmod +x .github/scripts/organize-reports.sh
-          .github/scripts/organize-reports.sh ${{ env.BUILD_NUMBER }} ${{ env.BUILD_DATE }}
+          chmod +x .github/workflows/scripts/organize-reports.sh
+          .github/workflows/scripts/organize-reports.sh ${{ env.BUILD_NUMBER }} ${{ env.BUILD_DATE }}
 
       - name: Generate index page
         if: github.ref == 'refs/heads/main'
-        run: cp .github/templates/index.html gh-pages-site/index.html
+        run: cp .github/workflows/templates/index.html gh-pages-site/index.html
 
       - name: Upload Combined Allure Report
         uses: actions/upload-artifact@v4
