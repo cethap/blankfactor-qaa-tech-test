@@ -1,0 +1,14 @@
+{
+  "name": "project-architecture-skill",
+  "version": "1.0.0",
+  "description": "Project scaffolding and architecture patterns skill",
+  "keywords": [
+    "architecture",
+    "scaffolding",
+    "patterns",
+    "orchestration",
+    "page-objects",
+    "claude-skill"
+  ],
+  "license": "MIT"
+}

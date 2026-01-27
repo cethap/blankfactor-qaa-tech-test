@@ -1,483 +1,252 @@
-# BDD Test Framework - API Reference
+# Playwright API Quick Reference
 
-This reference documents the project's core classes and patterns for Cucumber BDD testing with Playwright.
+## Locator Methods
 
-## Table of Contents
+### Finding Elements
 
-- [BasePage Class](#basepage-class)
-- [CustomWorld Class](#customworld-class)
-- [Hooks](#hooks)
-- [Step Definition Patterns](#step-definition-patterns)
-- [Playwright Locator API](#playwright-locator-api)
-- [Assertions](#assertions)
-- [Gherkin Syntax](#gherkin-syntax)
+| Method | Example |
+|--------|---------|
+| `getByRole` | `page.getByRole('button', { name: 'Submit' })` |
+| `getByLabel` | `page.getByLabel('Email')` |
+| `getByPlaceholder` | `page.getByPlaceholder('Search...')` |
+| `getByText` | `page.getByText('Welcome')` |
+| `getByTestId` | `page.getByTestId('submit-btn')` |
+| `getByTitle` | `page.getByTitle('Close')` |
+| `getByAltText` | `page.getByAltText('Logo')` |
+| `locator` | `page.locator('css=button')` |
 
----
+### Locator Filtering
 
-## BasePage Class
+| Method | Example |
+|--------|---------|
+| `filter({ hasText })` | `locator.filter({ hasText: 'Active' })` |
+| `filter({ hasNotText })` | `locator.filter({ hasNotText: 'Disabled' })` |
+| `filter({ has })` | `locator.filter({ has: page.getByRole('button') })` |
+| `first()` | `locator.first()` |
+| `last()` | `locator.last()` |
+| `nth(index)` | `locator.nth(2)` |
 
-**Location:** `src/core/basePage.ts`
-
-Abstract base class that all page objects must extend.
-
-### Properties
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `page` | `Page` | Playwright Page instance |
-
-### Methods
-
-| Method | Returns | Description |
-|--------|---------|-------------|
-| `goto(url: string)` | `Promise<void>` | Navigate to URL |
-| `getCurrentUrl()` | `Promise<string>` | Get current page URL |
-| `getPageTitle()` | `Promise<string>` | Get page title |
-| `pause()` | `Promise<void>` | Open Playwright Inspector for debugging |
-| `printHighlight(message: string)` | `void` | Print formatted console output |
-
-### Example Page Object
+### Chaining
 
 ```typescript
-import { Page } from '@playwright/test';
-import { BasePage } from '../core/basePage';
-
-export class MyPage extends BasePage {
-  // Define locators as arrow functions (lazy evaluation)
-  private myButton = () => this.page.getByRole('button', { name: 'Click Me' });
-  private myInput = () => this.page.getByLabel('Username');
-
-  constructor(page: Page) {
-    super(page);
-  }
-
-  async clickMyButton(): Promise<void> {
-    await this.myButton().click();
-  }
-
-  async enterUsername(username: string): Promise<void> {
-    await this.myInput().fill(username);
-  }
-}
+page
+  .getByRole('navigation')
+  .getByRole('link', { name: 'Home' })
 ```
 
 ---
 
-## CustomWorld Class
+## Actions
 
-**Location:** `src/support/world.ts`
+### Mouse Actions
 
-Extends Cucumber's World class with Playwright integration and shared state.
+| Action | Code |
+|--------|------|
+| Click | `await locator.click()` |
+| Double-click | `await locator.dblclick()` |
+| Right-click | `await locator.click({ button: 'right' })` |
+| Hover | `await locator.hover()` |
+| Drag to | `await source.dragTo(target)` |
 
-### Properties
+### Keyboard Actions
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `browser` | `Browser` | Playwright Browser instance |
-| `context` | `BrowserContext` | Browser context with settings |
-| `page` | `Page` | Current page instance |
-| `pageRegistry` | `Map<string, any>` | Cached page object instances |
-| `scenarioData` | `Map<string, any>` | Test data storage |
+| Action | Code |
+|--------|------|
+| Fill (clear + type) | `await locator.fill('text')` |
+| Type (char by char) | `await locator.type('text')` |
+| Press key | `await locator.press('Enter')` |
+| Clear | `await locator.clear()` |
 
-### Methods
+### Form Actions
 
-| Method | Returns | Description |
-|--------|---------|-------------|
-| `getPage<T>(PageClass)` | `Promise<T>` | Get or create page object instance |
-| `setData(key, value)` | `void` | Store data for current scenario |
-| `getData<T>(key)` | `T \| undefined` | Retrieve stored data |
+| Action | Code |
+|--------|------|
+| Select option | `await locator.selectOption('value')` |
+| Check | `await locator.check()` |
+| Uncheck | `await locator.uncheck()` |
+| Set checked | `await locator.setChecked(true)` |
+| Upload file | `await page.setInputFiles('input', 'file.pdf')` |
 
-### Usage in Steps
+### Scroll
+
+| Action | Code |
+|--------|------|
+| Scroll into view | `await locator.scrollIntoViewIfNeeded()` |
+| Scroll by pixels | `await page.mouse.wheel(0, 500)` |
+
+---
+
+## Waiting
+
+### Element Waiting
+
+| Wait For | Code |
+|----------|------|
+| Visible | `await locator.waitFor({ state: 'visible' })` |
+| Hidden | `await locator.waitFor({ state: 'hidden' })` |
+| Attached | `await locator.waitFor({ state: 'attached' })` |
+| Detached | `await locator.waitFor({ state: 'detached' })` |
+
+### Page Waiting
+
+| Wait For | Code |
+|----------|------|
+| DOM loaded | `await page.waitForLoadState('domcontentloaded')` |
+| Full load | `await page.waitForLoadState('load')` |
+| URL | `await page.waitForURL('**/dashboard')` |
+| Response | `await page.waitForResponse('**/api/data')` |
+| Request | `await page.waitForRequest('**/api/data')` |
+
+---
+
+## Assertions (expect)
+
+### Element Assertions
+
+| Assertion | Code |
+|-----------|------|
+| Visible | `await expect(locator).toBeVisible()` |
+| Hidden | `await expect(locator).toBeHidden()` |
+| Enabled | `await expect(locator).toBeEnabled()` |
+| Disabled | `await expect(locator).toBeDisabled()` |
+| Checked | `await expect(locator).toBeChecked()` |
+| Focused | `await expect(locator).toBeFocused()` |
+| Editable | `await expect(locator).toBeEditable()` |
+
+### Text/Content Assertions
+
+| Assertion | Code |
+|-----------|------|
+| Has text | `await expect(locator).toHaveText('text')` |
+| Contains text | `await expect(locator).toContainText('text')` |
+| Has value | `await expect(locator).toHaveValue('value')` |
+| Is empty | `await expect(locator).toBeEmpty()` |
+
+### Attribute Assertions
+
+| Assertion | Code |
+|-----------|------|
+| Has attribute | `await expect(locator).toHaveAttribute('href', '/home')` |
+| Has class | `await expect(locator).toHaveClass(/active/)` |
+| Has ID | `await expect(locator).toHaveId('main')` |
+| Has CSS | `await expect(locator).toHaveCSS('color', 'red')` |
+
+### Count Assertions
+
+| Assertion | Code |
+|-----------|------|
+| Count | `await expect(locator).toHaveCount(5)` |
+
+### Page Assertions
+
+| Assertion | Code |
+|-----------|------|
+| Title | `await expect(page).toHaveTitle('Title')` |
+| URL | `await expect(page).toHaveURL(/dashboard/)` |
+
+### Negation
 
 ```typescript
-import { Given, When, Then } from '@cucumber/cucumber';
-import { CustomWorld } from '../support/world';
-import { LoginPage } from '../pages/login.page';
+await expect(locator).not.toBeVisible()
+await expect(locator).not.toHaveText('error')
+```
 
-When('I login', async function (this: CustomWorld) {
-  // Get page object (lazy loaded, cached)
-  const loginPage = await this.getPage(LoginPage);
-  await loginPage.login('user', 'pass');
+### Soft Assertions
 
-  // Store data for later steps
-  this.setData('loggedInUser', 'user');
-});
-
-Then('I am logged in as the user', async function (this: CustomWorld) {
-  // Retrieve stored data
-  const user = this.getData<string>('loggedInUser');
-  // ... assertions
-});
+```typescript
+await expect.soft(locator).toHaveText('text')
+// Test continues even if fails
 ```
 
 ---
 
-## Hooks
+## Page Methods
 
-**Location:** `src/support/hooks.ts`
+### Navigation
 
-### BeforeAll
+| Method | Code |
+|--------|------|
+| Go to URL | `await page.goto('https://example.com')` |
+| Go back | `await page.goBack()` |
+| Go forward | `await page.goForward()` |
+| Reload | `await page.reload()` |
 
-Launches browser once per test run.
+### Information
 
-```typescript
-BeforeAll(async function () {
-  // Browser is launched with headless/headed mode based on env
-});
-```
+| Method | Code |
+|--------|------|
+| Get URL | `page.url()` |
+| Get title | `await page.title()` |
+| Get content | `await page.content()` |
 
-### Before (per scenario)
+### Screenshots
 
-Sets up browser context with:
-- User-Agent override
-- Locale and timezone
-- Extra HTTP headers (anti-bot)
-- Playwright tracing
+| Method | Code |
+|--------|------|
+| Page screenshot | `await page.screenshot({ path: 'shot.png' })` |
+| Full page | `await page.screenshot({ fullPage: true })` |
+| Element | `await locator.screenshot({ path: 'el.png' })` |
 
-### After (per scenario)
-
-- Captures screenshot on failure
-- Saves trace file
-- Closes page and context
-
-### AfterAll
-
-Closes browser instance.
-
----
-
-## Step Definition Patterns
-
-### Basic Structure
-
-```typescript
-import { Given, When, Then, BeforeStep } from '@cucumber/cucumber';
-import { expect } from '@playwright/test';
-import { CustomWorld } from '../support/world';
-import { MyPage } from '../pages/my.page';
-
-// Module-level page reference
-let myPage: MyPage;
-
-// Initialize once per step
-BeforeStep(async function (this: CustomWorld) {
-  myPage = await this.getPage(MyPage);
-});
-
-// Step implementations
-Given('I am on the home page', async function (this: CustomWorld) {
-  await myPage.goto('https://example.com');
-});
-
-When('I click the {string} button', async function (this: CustomWorld, buttonName: string) {
-  await myPage.clickButton(buttonName);
-});
-
-Then('I should see {string}', async function (this: CustomWorld, text: string) {
-  await expect(this.page.getByText(text)).toBeVisible();
-});
-```
-
-### Cucumber Expressions
-
-| Expression | Matches | Example |
-|------------|---------|---------|
-| `{string}` | Quoted string | `"hello"` |
-| `{int}` | Integer | `42` |
-| `{float}` | Decimal | `3.14` |
-| `{word}` | Single word | `foo` |
-| `{}` | Any text | anything |
-
-```typescript
-Given('I have {int} items in my cart', async function (count: number) {
-  // count is parsed as integer
-});
-
-When('I search for {string}', async function (query: string) {
-  // query is the text inside quotes
-});
-```
-
-### Data Tables
-
-```gherkin
-When I fill in the form:
-  | field    | value          |
-  | name     | John Doe       |
-  | email    | john@test.com  |
-```
-
-```typescript
-When('I fill in the form:', async function (this: CustomWorld, dataTable: DataTable) {
-  const rows = dataTable.hashes();
-  for (const row of rows) {
-    await this.page.getByLabel(row.field).fill(row.value);
-  }
-});
-```
-
----
-
-## Playwright Locator API
-
-### Preferred Locators (Most Resilient)
-
-```typescript
-// By role (BEST - semantic, accessible)
-page.getByRole('button', { name: 'Submit' });
-page.getByRole('link', { name: 'Home' });
-page.getByRole('heading', { level: 1 });
-page.getByRole('textbox', { name: 'Email' });
-page.getByRole('checkbox', { name: 'Accept terms' });
-page.getByRole('navigation');
-page.getByRole('main');
-
-// By label (forms)
-page.getByLabel('Email address');
-page.getByPlaceholder('Enter email');
-
-// By text
-page.getByText('Welcome');
-page.getByText(/welcome/i);  // case-insensitive
-```
-
-### Secondary Locators
-
-```typescript
-// By test ID
-page.getByTestId('submit-button');
-
-// CSS selector
-page.locator('.my-class');
-page.locator('#my-id');
-page.locator('[data-testid="foo"]');
-
-// Combining locators
-page.locator('div').filter({ hasText: 'Hello' });
-page.locator('tr').filter({ has: page.locator('td', { hasText: 'Active' }) });
-```
-
-### Locator Actions
-
-```typescript
-// Click
-await locator.click();
-await locator.click({ button: 'right' });
-await locator.dblclick();
-
-// Fill input
-await locator.fill('text');
-await locator.clear();
-await locator.type('text', { delay: 100 });
-
-// Select
-await locator.selectOption('value');
-await locator.selectOption({ label: 'Option Text' });
-
-// Checkbox
-await locator.check();
-await locator.uncheck();
-
-// Hover
-await locator.hover();
-
-// Scroll
-await locator.scrollIntoViewIfNeeded();
-
-// Wait
-await locator.waitFor({ state: 'visible' });
-await locator.waitFor({ state: 'hidden', timeout: 5000 });
-
-// Get text/attributes
-const text = await locator.textContent();
-const innerText = await locator.innerText();
-const value = await locator.inputValue();
-const attr = await locator.getAttribute('href');
-```
-
----
-
-## Assertions
-
-### Playwright Expect API
-
-```typescript
-import { expect } from '@playwright/test';
-
-// Page assertions
-await expect(page).toHaveTitle('My App');
-await expect(page).toHaveURL(/.*dashboard/);
-
-// Element visibility
-await expect(locator).toBeVisible();
-await expect(locator).toBeHidden();
-await expect(locator).toBeEnabled();
-await expect(locator).toBeDisabled();
-
-// Text assertions
-await expect(locator).toHaveText('Exact text');
-await expect(locator).toContainText('partial');
-await expect(locator).toHaveText(/regex/i);
-
-// Input values
-await expect(locator).toHaveValue('input value');
-await expect(locator).toBeEmpty();
-
-// Attributes/CSS
-await expect(locator).toHaveAttribute('href', '/home');
-await expect(locator).toHaveClass(/active/);
-await expect(locator).toHaveCSS('color', 'rgb(0, 0, 0)');
-
-// Count
-await expect(locator).toHaveCount(5);
-
-// Checkbox state
-await expect(locator).toBeChecked();
-```
-
-### Soft Assertions (Non-Blocking)
-
-```typescript
-await expect.soft(locator).toHaveText('text');
-// Test continues even if this fails
-```
-
----
-
-## Gherkin Syntax
-
-### Feature File Structure
-
-```gherkin
-@tag1 @tag2
-Feature: Feature Name
-  As a <role>
-  I want <feature>
-  So that <benefit>
-
-  Background:
-    Given common setup steps
-    And more setup
-
-  @smoke
-  Scenario: Scenario name
-    Given initial state
-    When action happens
-    Then expected outcome
-    And another outcome
-
-  Scenario Outline: Parameterized scenario
-    Given I have <count> items
-    When I add <more> items
-    Then I should have <total> items
-
-    Examples:
-      | count | more | total |
-      | 1     | 2    | 3     |
-      | 5     | 5    | 10    |
-```
-
-### Running Tagged Scenarios
-
-```bash
-# Run only @smoke tagged scenarios
-npm test -- --tags "@smoke"
-
-# Run excluding @wip
-npm test -- --tags "not @wip"
-
-# Combine tags
-npm test -- --tags "@smoke and @login"
-```
-
----
-
-## Common Patterns
-
-### Wait for Network Idle
-
-```typescript
-await page.waitForLoadState('networkidle');
-```
-
-### Wait for Navigation
-
-```typescript
-await Promise.all([
-  page.waitForNavigation(),
-  button.click(),
-]);
-```
-
-### Handle Dialogs
+### Dialogs
 
 ```typescript
 page.on('dialog', async dialog => {
-  await dialog.accept();
+  console.log(dialog.message())
+  await dialog.accept()
   // or dialog.dismiss()
-});
+})
 ```
 
-### File Upload
+### Frames
 
 ```typescript
-await page.setInputFiles('input[type="file"]', 'path/to/file.pdf');
+const frame = page.frameLocator('#iframe')
+await frame.getByRole('button').click()
 ```
 
-### iFrame Interaction
-
-```typescript
-const frame = page.frameLocator('#iframe-id');
-await frame.locator('button').click();
-```
-
-### Multiple Windows/Tabs
+### New Pages/Tabs
 
 ```typescript
 const [newPage] = await Promise.all([
   context.waitForEvent('page'),
-  page.click('a[target="_blank"]'),
-]);
-await newPage.waitForLoadState();
+  page.click('a[target="_blank"]')
+])
+await newPage.waitForLoadState()
 ```
+
+---
+
+## Role Types Reference
+
+| Role | Elements |
+|------|----------|
+| `button` | `<button>`, `<input type="button">` |
+| `link` | `<a href>` |
+| `textbox` | `<input type="text">`, `<textarea>` |
+| `checkbox` | `<input type="checkbox">` |
+| `radio` | `<input type="radio">` |
+| `combobox` | `<select>` |
+| `heading` | `<h1>` - `<h6>` |
+| `list` | `<ul>`, `<ol>` |
+| `listitem` | `<li>` |
+| `table` | `<table>` |
+| `row` | `<tr>` |
+| `cell` | `<td>` |
+| `navigation` | `<nav>` |
+| `main` | `<main>` |
+| `banner` | `<header>` |
+| `contentinfo` | `<footer>` |
+| `dialog` | `<dialog>` |
+| `alert` | `role="alert"` |
 
 ---
 
 ## Debugging
 
-### Pause and Inspect
-
-```typescript
-await page.pause();  // Opens Playwright Inspector
-```
-
-### Console Logs
-
-```typescript
-page.on('console', msg => console.log('Browser:', msg.text()));
-page.on('pageerror', err => console.log('Page Error:', err));
-```
-
-### Screenshot on Demand
-
-```typescript
-await page.screenshot({ path: 'debug.png', fullPage: true });
-```
-
-### Trace Viewer
-
-```bash
-npx playwright show-trace reports/traces/trace-*.zip
-```
-
----
-
-## Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `HEADLESS` | `true` | Run browser in headless mode |
-| `SLOWMO` | `0` | Slow down actions by N ms |
-| `CI` | `false` | CI environment (forces headless) |
-| `TIMEOUT` | `60000` | Test timeout in ms |
-| `PARALLEL_WORKERS` | `2` | Number of parallel workers |
+| Tool | Usage |
+|------|-------|
+| Pause | `await page.pause()` |
+| Console log | `page.on('console', msg => console.log(msg.text()))` |
+| Trace viewer | `npx playwright show-trace trace.zip` |
+| Debug mode | `PWDEBUG=1 npm test` |
+| Codegen | `npx playwright codegen https://example.com` |

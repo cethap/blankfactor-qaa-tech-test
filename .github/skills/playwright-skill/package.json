@@ -1,24 +1,14 @@
 {
-  "name": "playwright-bdd-skill",
+  "name": "playwright-skill",
   "version": "1.0.0",
-  "description": "BDD test automation skill for Cucumber + Playwright projects",
-  "main": "run.js",
-  "scripts": {
-    "test": "node run.js",
-    "test:parallel": "node run.js --parallel",
-    "test:headed": "node run.js --headed",
-    "test:smoke": "node run.js --tags @smoke"
-  },
+  "description": "Playwright best practices - locators, waits, assertions, debugging",
   "keywords": [
     "playwright",
-    "cucumber",
-    "bdd",
-    "automation",
+    "locators",
+    "assertions",
     "testing",
+    "best-practices",
     "claude-skill"
   ],
-  "engines": {
-    "node": ">=18.0.0"
-  },
   "license": "MIT"
 }

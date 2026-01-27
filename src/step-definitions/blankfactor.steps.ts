@@ -20,11 +20,11 @@ import { ContentOrchestrator } from '../orchestration/contentOrchestrator';
  *   Page Objects - UI interactions
  */
 
-let navigation: NavigationOrchestrator;
-let content: ContentOrchestrator;
+let navigation_domain: NavigationOrchestrator;
+let content_domain: ContentOrchestrator;
 
 BeforeStep(async function (this: CustomWorld) {
-  [navigation, content] = [
+  [navigation_domain, content_domain] = [
     this.getOrchestrator(NavigationOrchestrator),
     this.getOrchestrator(ContentOrchestrator),
   ];
@@ -35,27 +35,27 @@ BeforeStep(async function (this: CustomWorld) {
 // ============================================================
 
 Given('I navigate to {string}', async function (this: CustomWorld, url: string) {
-  await navigation.navigateToApp(url);
+  await navigation_domain.navigateToApp(url);
 });
 
 When('I hover to Industries section', async function (this: CustomWorld) {
-  await navigation.hoverOnIndustriesMenu();
+  await navigation_domain.hoverOnIndustriesMenu();
 });
 
 When('I open the {string} section', async function (this: CustomWorld, sectionName: string) {
-  await navigation.openIndustrySection(sectionName);
+  await navigation_domain.openIndustrySection(sectionName);
 });
 
 When('I scroll down to the {string} section', async function (this: CustomWorld, sectionHeading: string) {
-  await navigation.scrollToSection(sectionHeading);
+  await navigation_domain.scrollToSection(sectionHeading);
 });
 
 When('I scroll to the bottom of the page', async function (this: CustomWorld) {
-  await navigation.scrollToBottom();
+  await navigation_domain.scrollToBottom();
 });
 
 When('I click on the {string} button', async function (this: CustomWorld, buttonText: string) {
-  await navigation.clickNavigationButton(buttonText);
+  await navigation_domain.clickNavigationButton(buttonText);
 });
 
 // ============================================================
@@ -63,7 +63,7 @@ When('I click on the {string} button', async function (this: CustomWorld, button
 // ============================================================
 
 Then('I should be able to copy text from tile {string} by hovering', async function (this: CustomWorld, tileName: string) {
-  const copiedText = await content.getTileContent(tileName);
+  const copiedText = await content_domain.getTileContent(tileName);
   this.setData('copiedText', copiedText);
 });
 
@@ -77,14 +77,14 @@ Then('I should validate the copied text contains the tile description', async fu
 });
 
 Then('I should verify the page URL', async function (this: CustomWorld) {
-  const { url } = await content.getPageInfo();
+  const { url } = await content_domain.getPageInfo();
 
   // Assertion
   expect(url).toContain('/contact/');
 });
 
 Then('I should verify the page title', async function (this: CustomWorld) {
-  const { title } = await content.getPageInfo();
+  const { title } = await content_domain.getPageInfo();
   this.setData('pageTitle', title);
 
   // Assertion
@@ -93,5 +93,5 @@ Then('I should verify the page title', async function (this: CustomWorld) {
 
 Then('I should print the title text', async function (this: CustomWorld) {
   const pageTitle = this.getData<string>('pageTitle');
-  content.printContent('PAGE TITLE', pageTitle || '');
+  content_domain.printContent('PAGE TITLE', pageTitle || '');
 });

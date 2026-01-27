@@ -1,388 +1,537 @@
 ---
-name: playwright-bdd
-description: BDD test automation with Playwright + Cucumber. Create feature files, step definitions, page objects. Run tests, debug failures, heal broken locators. Use for writing Gherkin scenarios, implementing steps, adding page methods, running test suites, or fixing failing tests.
+name: playwright
+description: Playwright best practices for browser automation. Locator strategies, waits, assertions, debugging, and anti-patterns. Use for writing reliable, maintainable Playwright code.
 ---
 
-# Playwright BDD Test Automation Skill
+# Playwright Best Practices Skill
 
-This skill helps you work with the Cucumber BDD + Playwright test framework in this project.
+This skill covers Playwright-specific best practices for reliable browser automation.
 
-## Project Architecture
+---
 
-```
-/project-root/
-├── features/                    # CENTRAL KNOWLEDGE - Gherkin scenarios
-│   └── *.feature
-├── src/
-│   ├── step-definitions/        # THIN - Assertions only
-│   │   └── *.steps.ts
-│   ├── orchestration/           # BUSINESS LOGIC - Workflows
-│   │   ├── baseOrchestrator.ts
-│   │   └── *.ts
-│   ├── pages/                   # UI LAYER - Element interactions
-│   │   └── *.page.ts
-│   ├── core/
-│   │   └── basePage.ts          # Base class for pages
-│   └── support/
-│       ├── hooks.ts             # Before/After hooks, browser setup
-│       └── world.ts             # CustomWorld with registries
-├── reports/                     # Test output (traces, screenshots)
-├── cucumber.js                  # Cucumber configuration
-└── package.json                 # NPM scripts
-```
+## Locator Strategies (Priority Order)
 
-## Three-Layer Architecture
+### 1. Role-Based Locators (BEST)
 
-| Layer | Location | Responsibility |
-|-------|----------|----------------|
-| **Step Definitions** | `src/step-definitions/` | THIN: Call orchestrators + assertions |
-| **Orchestration** | `src/orchestration/` | Business workflows, multi-page flows |
-| **Page Objects** | `src/pages/` | UI element interactions only |
-
-## Running Tests
-
-```bash
-# Run all tests (default)
-npm test
-
-# Run with parallel workers
-npm run test:parallel
-
-# Run with fail-fast (stop on first failure)
-npm run test:debug
-
-# Generate HTML report
-npm run test:report
-
-# Run for CI (JSON output)
-npm run test:ci
-```
-
-## Creating a New Feature File
-
-Feature files go in `features/` using Gherkin syntax:
-
-```gherkin
-# features/login.feature
-Feature: User Login
-
-  Background:
-    Given I navigate to "https://example.com"
-
-  Scenario: Successful login with valid credentials
-    When I enter "user@example.com" in the email field
-    And I enter "password123" in the password field
-    And I click the login button
-    Then I should see the dashboard page
-    And the page title should contain "Dashboard"
-
-  Scenario: Failed login with invalid password
-    When I enter "user@example.com" in the email field
-    And I enter "wrongpassword" in the password field
-    And I click the login button
-    Then I should see an error message "Invalid credentials"
-```
-
-## Creating a Page Object
-
-Page objects go in `src/pages/` and extend `BasePage`:
+Most resilient to DOM changes. Use accessibility roles.
 
 ```typescript
-// src/pages/login.page.ts
-import { Page } from '@playwright/test';
-import { BasePage } from '../core/basePage';
+// Buttons
+page.getByRole('button', { name: 'Submit' })
+page.getByRole('button', { name: /submit/i })  // Case-insensitive
 
-export class LoginPage extends BasePage {
-  // Locators - prefer getByRole, getByLabel, getByText
-  private emailInput = () => this.page.getByLabel('Email');
-  private passwordInput = () => this.page.getByLabel('Password');
-  private loginButton = () => this.page.getByRole('button', { name: 'Login' });
-  private errorMessage = () => this.page.locator('.error-message');
-  private dashboardTitle = () => this.page.getByRole('heading', { level: 1 });
+// Links
+page.getByRole('link', { name: 'Home' })
+page.getByRole('navigation').getByRole('link', { name: 'About' })
 
-  constructor(page: Page) {
-    super(page);
-  }
+// Headings
+page.getByRole('heading', { level: 1 })
+page.getByRole('heading', { name: 'Welcome' })
 
-  async enterEmail(email: string): Promise<void> {
-    await this.emailInput().fill(email);
-  }
+// Form elements
+page.getByRole('textbox', { name: 'Email' })
+page.getByRole('checkbox', { name: 'Accept terms' })
+page.getByRole('combobox', { name: 'Country' })
+page.getByRole('radio', { name: 'Option A' })
 
-  async enterPassword(password: string): Promise<void> {
-    await this.passwordInput().fill(password);
-  }
+// Tables
+page.getByRole('table')
+page.getByRole('row', { name: 'John Doe' })
+page.getByRole('cell', { name: 'Active' })
 
-  async clickLogin(): Promise<void> {
-    await this.loginButton().click();
-  }
-
-  async getErrorMessage(): Promise<string> {
-    await this.errorMessage().waitFor({ timeout: 5000 });
-    return await this.errorMessage().textContent() || '';
-  }
-
-  async isDashboardVisible(): Promise<boolean> {
-    return await this.dashboardTitle().isVisible();
-  }
-}
+// Landmarks
+page.getByRole('main')
+page.getByRole('navigation')
+page.getByRole('banner')
+page.getByRole('contentinfo')
 ```
 
-## Creating an Orchestrator (Business Logic)
+### 2. Label-Based Locators (GOOD)
 
-Orchestrators go in `src/orchestration/` and compose page interactions:
+For form inputs with proper labels.
 
 ```typescript
-// src/orchestration/authOrchestrator.ts
-import { Page } from '@playwright/test';
-import { BaseOrchestrator } from './baseOrchestrator';
-import { LoginPage } from '../pages/login.page';
-
-export class AuthOrchestrator extends BaseOrchestrator {
-  private loginPage: LoginPage;
-
-  constructor(page: Page) {
-    super(page);
-    this.loginPage = new LoginPage(page);
-  }
-
-  // Business workflow - combines multiple page interactions
-  async loginWithCredentials(email: string, password: string): Promise<void> {
-    await this.loginPage.enterEmail(email);
-    await this.loginPage.enterPassword(password);
-    await this.loginPage.clickLogin();
-    await this.waitForPageReady();
-    this.log('Login completed', email);
-  }
-
-  async getLoginErrorMessage(): Promise<string> {
-    return await this.loginPage.getErrorMessage();
-  }
-
-  async isDashboardVisible(): Promise<boolean> {
-    return await this.loginPage.isDashboardVisible();
-  }
-}
+page.getByLabel('Email address')
+page.getByLabel('Password')
+page.getByLabel(/email/i)  // Partial match
 ```
 
-## Creating Step Definitions (THIN)
+### 3. Placeholder-Based (GOOD)
 
-Step definitions should be THIN - only orchestrator calls and assertions:
+When labels aren't available.
 
 ```typescript
-// src/step-definitions/login.steps.ts
-import { Given, When, Then, BeforeStep } from '@cucumber/cucumber';
+page.getByPlaceholder('Enter your email')
+page.getByPlaceholder('Search...')
+```
+
+### 4. Text-Based (GOOD)
+
+For unique visible text.
+
+```typescript
+page.getByText('Welcome back')
+page.getByText(/welcome/i)        // Case-insensitive
+page.getByText('Submit', { exact: true })  // Exact match
+```
+
+### 5. Test ID (OK)
+
+When semantic locators aren't available.
+
+```typescript
+page.getByTestId('submit-button')
+page.getByTestId('user-profile')
+```
+
+### 6. CSS Selectors (AVOID)
+
+Fragile, breaks with style changes.
+
+```typescript
+// AVOID these
+page.locator('.btn-primary')
+page.locator('#submit')
+page.locator('div.container > button')
+```
+
+---
+
+## Locator Chaining & Filtering
+
+### Chaining Locators
+
+```typescript
+// Within navigation, find the Home link
+page.getByRole('navigation').getByRole('link', { name: 'Home' })
+
+// Within a specific section
+page.locator('section.products').getByRole('button', { name: 'Buy' })
+
+// Within a list item
+page.getByRole('listitem').filter({ hasText: 'Premium' }).getByRole('button')
+```
+
+### Filtering Locators
+
+```typescript
+// Filter by text
+page.getByRole('listitem').filter({ hasText: 'Active' })
+
+// Filter by NOT having text
+page.getByRole('listitem').filter({ hasNotText: 'Disabled' })
+
+// Filter by containing another locator
+page.getByRole('row').filter({ has: page.getByRole('cell', { name: 'Admin' }) })
+
+// Combine filters
+page.getByRole('row')
+  .filter({ hasText: 'John' })
+  .filter({ has: page.getByRole('button', { name: 'Edit' }) })
+```
+
+### Nth Element
+
+```typescript
+page.getByRole('button').first()
+page.getByRole('button').last()
+page.getByRole('button').nth(2)  // Third button (0-indexed)
+```
+
+---
+
+## Waiting Strategies
+
+### Auto-Waiting (Built-in)
+
+Playwright auto-waits for elements to be actionable:
+
+```typescript
+// These auto-wait for element to be visible, enabled, stable
+await page.click('button')
+await page.fill('input', 'text')
+await page.check('input[type="checkbox"]')
+```
+
+### Explicit Waits
+
+```typescript
+// Wait for element state
+await page.getByRole('button').waitFor({ state: 'visible' })
+await page.getByRole('spinner').waitFor({ state: 'hidden' })
+await page.getByRole('button').waitFor({ state: 'attached' })
+await page.getByRole('dialog').waitFor({ state: 'detached' })
+
+// Wait with timeout
+await locator.waitFor({ state: 'visible', timeout: 10000 })
+```
+
+### Wait for Load State
+
+```typescript
+// Wait for DOM content loaded
+await page.waitForLoadState('domcontentloaded')
+
+// Wait for all resources loaded
+await page.waitForLoadState('load')
+
+// Wait for network idle (AVOID in most cases)
+// await page.waitForLoadState('networkidle')  // Can be flaky
+```
+
+### Wait for URL
+
+```typescript
+await page.waitForURL('**/dashboard')
+await page.waitForURL(/\/dashboard$/)
+await page.waitForURL(url => url.pathname === '/dashboard')
+```
+
+### Wait for Response
+
+```typescript
+// Wait for specific API response
+const responsePromise = page.waitForResponse('**/api/users')
+await page.click('button')
+const response = await responsePromise
+
+// Wait for response with condition
+const response = await page.waitForResponse(
+  response => response.url().includes('/api/') && response.status() === 200
+)
+```
+
+### Anti-Pattern: Fixed Timeouts
+
+```typescript
+// NEVER do this
+await page.waitForTimeout(5000)  // Bad! Flaky and slow
+
+// Instead, wait for specific condition
+await page.getByText('Loaded').waitFor()
+```
+
+---
+
+## Assertions
+
+### Element Assertions
+
+```typescript
 import { expect } from '@playwright/test';
-import { CustomWorld } from '../support/world';
-import { AuthOrchestrator } from '../orchestration/authOrchestrator';
 
-let auth: AuthOrchestrator;
+// Visibility
+await expect(locator).toBeVisible()
+await expect(locator).toBeHidden()
+await expect(locator).not.toBeVisible()
 
-// Initialize orchestrator once per step
-BeforeStep(async function (this: CustomWorld) {
-  auth = this.getOrchestrator(AuthOrchestrator);
-});
+// Enabled/Disabled
+await expect(locator).toBeEnabled()
+await expect(locator).toBeDisabled()
 
-// Steps are THIN - just call orchestrator
-When('I login with {string} and {string}', async function (email: string, password: string) {
-  await auth.loginWithCredentials(email, password);
-});
+// Checked (checkbox/radio)
+await expect(locator).toBeChecked()
+await expect(locator).not.toBeChecked()
 
-// Assertions belong in step definitions
-Then('I should see the dashboard page', async function () {
-  const isVisible = await auth.isDashboardVisible();
-  expect(isVisible).toBe(true);
-});
+// Focused
+await expect(locator).toBeFocused()
 
-Then('I should see an error message {string}', async function (expectedMessage: string) {
-  const actualMessage = await auth.getLoginErrorMessage();
-  expect(actualMessage).toContain(expectedMessage);
-});
-
-Then('the page title should contain {string}', async function (this: CustomWorld, expectedTitle: string) {
-  const title = await auth.getPageTitle();
-  expect(title).toContain(expectedTitle);
-});
+// Editable
+await expect(locator).toBeEditable()
 ```
 
-## Locator Best Practices
-
-Prefer accessible, semantic locators (most resilient to UI changes):
+### Text Assertions
 
 ```typescript
-// BEST: Role-based selectors
-this.page.getByRole('button', { name: 'Submit' });
-this.page.getByRole('link', { name: 'Industries' });
-this.page.getByRole('heading', { level: 1 });
-this.page.getByRole('textbox', { name: 'Email' });
+// Exact text
+await expect(locator).toHaveText('Welcome')
 
-// GOOD: Label-based (for form inputs)
-this.page.getByLabel('Email');
-this.page.getByPlaceholder('Enter your email');
+// Contains text
+await expect(locator).toContainText('Welcome')
 
-// GOOD: Text-based (for unique text)
-this.page.getByText('Welcome back');
-this.page.getByText(/sign in/i);  // Case-insensitive regex
+// Regex
+await expect(locator).toHaveText(/welcome/i)
 
-// OK: Data attributes (when semantic selectors unavailable)
-this.page.locator('[data-testid="submit-btn"]');
-
-// AVOID: CSS classes and IDs (fragile)
-this.page.locator('.btn-primary');  // Classes change often
-this.page.locator('#submit');       // IDs can be unstable
+// Multiple elements
+await expect(locator).toHaveText(['Item 1', 'Item 2', 'Item 3'])
 ```
 
-## Sharing Data Between Steps
-
-Use the CustomWorld's `scenarioData` Map:
+### Attribute Assertions
 
 ```typescript
-// Store data
-When('I copy the text from {string}', async function (this: CustomWorld, element: string) {
-  const text = await this.page.locator(element).textContent();
-  this.setData('copiedText', text);
-});
-
-// Retrieve data
-Then('the copied text should contain {string}', async function (this: CustomWorld, expected: string) {
-  const copiedText = this.getData<string>('copiedText');
-  expect(copiedText).toContain(expected);
-});
+await expect(locator).toHaveAttribute('href', '/home')
+await expect(locator).toHaveAttribute('href', /home/)
+await expect(locator).toHaveClass(/active/)
+await expect(locator).toHaveId('main-content')
 ```
 
-## Debugging Failed Tests
+### Value Assertions
 
-### View Playwright Traces
+```typescript
+await expect(locator).toHaveValue('test@example.com')
+await expect(locator).toBeEmpty()
+```
 
-After a test failure, traces are saved to `reports/traces/`:
+### Count Assertions
+
+```typescript
+await expect(locator).toHaveCount(5)
+await expect(locator).toHaveCount(0)  // No elements
+```
+
+### Page Assertions
+
+```typescript
+await expect(page).toHaveTitle('Dashboard')
+await expect(page).toHaveTitle(/Dashboard/)
+await expect(page).toHaveURL('https://example.com/dashboard')
+await expect(page).toHaveURL(/dashboard/)
+```
+
+### CSS Assertions
+
+```typescript
+await expect(locator).toHaveCSS('color', 'rgb(255, 0, 0)')
+await expect(locator).toHaveCSS('display', 'none')
+```
+
+### Soft Assertions
+
+Continue test even if assertion fails:
+
+```typescript
+await expect.soft(locator).toHaveText('Expected')
+await expect.soft(page).toHaveTitle('Title')
+// Test continues, failures reported at end
+```
+
+---
+
+## Actions
+
+### Click Actions
+
+```typescript
+await locator.click()
+await locator.click({ button: 'right' })      // Right-click
+await locator.dblclick()                       // Double-click
+await locator.click({ force: true })           // Skip actionability checks
+await locator.click({ position: { x: 10, y: 10 } })  // Click at position
+await locator.click({ modifiers: ['Shift'] })  // Shift+click
+```
+
+### Input Actions
+
+```typescript
+await locator.fill('text')           // Clear and type
+await locator.clear()                // Clear input
+await locator.type('text')           // Type character by character
+await locator.type('text', { delay: 100 })  // With delay
+await locator.press('Enter')         // Press key
+await locator.pressSequentially('text')  // Type one char at a time
+```
+
+### Select Actions
+
+```typescript
+await locator.selectOption('value')              // By value
+await locator.selectOption({ label: 'Option' })  // By label
+await locator.selectOption({ index: 2 })         // By index
+await locator.selectOption(['a', 'b'])           // Multiple
+```
+
+### Checkbox/Radio
+
+```typescript
+await locator.check()
+await locator.uncheck()
+await locator.setChecked(true)
+await locator.setChecked(false)
+```
+
+### Hover
+
+```typescript
+await locator.hover()
+await locator.hover({ force: true })
+```
+
+### Scroll
+
+```typescript
+await locator.scrollIntoViewIfNeeded()
+await page.mouse.wheel(0, 500)  // Scroll down 500px
+```
+
+### Drag and Drop
+
+```typescript
+await page.dragAndDrop('#source', '#target')
+await source.dragTo(target)
+```
+
+### File Upload
+
+```typescript
+await page.setInputFiles('input[type="file"]', 'path/to/file.pdf')
+await page.setInputFiles('input[type="file"]', ['file1.pdf', 'file2.pdf'])
+await page.setInputFiles('input[type="file"]', [])  // Clear
+```
+
+---
+
+## Debugging
+
+### Pause Execution
+
+```typescript
+await page.pause()  // Opens Playwright Inspector
+```
+
+### Console Logs
+
+```typescript
+page.on('console', msg => console.log('Browser:', msg.text()))
+page.on('pageerror', err => console.log('Error:', err.message))
+```
+
+### Screenshots
+
+```typescript
+await page.screenshot({ path: 'debug.png' })
+await page.screenshot({ path: 'full.png', fullPage: true })
+await locator.screenshot({ path: 'element.png' })
+```
+
+### Trace Viewer
 
 ```bash
-# View a trace file in Playwright Trace Viewer
-npx playwright show-trace reports/traces/trace-*.zip
+npx playwright show-trace trace.zip
 ```
 
-### View Screenshots
-
-Failure screenshots are saved to `reports/screenshots/`.
-
-### Run in Headed Mode
-
-Set `HEADLESS=false` in `.env` or:
+### Debug Mode
 
 ```bash
-HEADLESS=false npm test
+PWDEBUG=1 npm test
 ```
 
-### Pause Execution for Debugging
+---
 
-Add to any page object method:
+## Anti-Patterns to Avoid
+
+### 1. Using networkidle
 
 ```typescript
-async debugPause(): Promise<void> {
-  await this.pause();  // Opens Playwright Inspector
+// BAD - Flaky and slow
+await page.goto(url, { waitUntil: 'networkidle' })
+
+// GOOD - Wait for specific element
+await page.goto(url)
+await page.getByRole('heading').waitFor()
+```
+
+### 2. Fixed Timeouts
+
+```typescript
+// BAD
+await page.waitForTimeout(5000)
+
+// GOOD
+await page.getByText('Loaded').waitFor()
+```
+
+### 3. CSS/XPath Selectors
+
+```typescript
+// BAD - Fragile
+page.locator('.btn-submit')
+page.locator('//button[@class="submit"]')
+
+// GOOD - Semantic
+page.getByRole('button', { name: 'Submit' })
+```
+
+### 4. Using page.$ or page.$$
+
+```typescript
+// BAD - Old API
+const element = await page.$('button')
+
+// GOOD - Modern API
+const element = page.locator('button')
+```
+
+### 5. Checking Visibility Before Action
+
+```typescript
+// BAD - Redundant
+if (await locator.isVisible()) {
+  await locator.click()
 }
+
+// GOOD - Auto-waits
+await locator.click()
 ```
 
-## Common Patterns
-
-### Scrolling to Elements
+### 6. Using evaluate for Simple Tasks
 
 ```typescript
-async scrollToSection(sectionName: string): Promise<void> {
-  const section = this.page.getByRole('heading', { name: sectionName });
-  await section.scrollIntoViewIfNeeded();
-  await section.waitFor({ state: 'visible', timeout: 10000 });
-}
+// BAD
+await page.evaluate(() => document.querySelector('button').click())
+
+// GOOD
+await page.getByRole('button').click()
 ```
 
-### Hover Actions
+---
+
+## Performance Tips
+
+### Parallel Locators
 
 ```typescript
-async hoverOverMenu(menuName: string): Promise<void> {
-  const menu = this.page.getByRole('link', { name: menuName });
-  await menu.hover();
-  await this.page.waitForTimeout(300);  // Wait for dropdown
-}
+// Run checks in parallel
+const [title, buttonVisible] = await Promise.all([
+  page.title(),
+  page.getByRole('button').isVisible(),
+])
 ```
 
-### Wait for Navigation
+### Reuse Locators
 
 ```typescript
-async clickAndWaitForNavigation(locator: Locator): Promise<void> {
-  await Promise.all([
-    this.page.waitForLoadState('domcontentloaded'),
-    locator.click(),
-  ]);
-}
+// Define once, use multiple times
+const submitBtn = page.getByRole('button', { name: 'Submit' })
+
+await submitBtn.waitFor()
+await submitBtn.click()
+await expect(submitBtn).toBeDisabled()
 ```
 
-### Extract Text from Element
+### Use Strict Mode
 
 ```typescript
-async getTileDescription(tileName: string): Promise<string> {
-  const tile = this.page.locator(`[data-tile="${tileName}"]`);
-  await tile.hover();
-  const description = tile.locator('.description');
-  await description.waitFor({ state: 'visible' });
-  return await description.textContent() || '';
-}
+// Fail if multiple elements match
+const button = page.getByRole('button', { name: 'Submit' })
+await button.click()  // Fails if multiple matches
+
+// Explicitly handle multiple
+const buttons = page.getByRole('button')
+await buttons.first().click()
 ```
 
-## Healing Broken Locators
-
-When a test fails due to changed UI:
-
-1. **Check the trace** - View the screenshot/DOM at failure point
-2. **Update the locator** - Prefer getByRole/getByLabel over CSS
-3. **Test the locator** - Run the specific scenario to verify
-
-Example fix:
-```typescript
-// BEFORE (broken - class changed)
-private submitBtn = () => this.page.locator('.btn-submit');
-
-// AFTER (resilient - uses role + text)
-private submitBtn = () => this.page.getByRole('button', { name: 'Submit' });
-```
-
-## Adding New Test Scenarios
-
-1. **Add scenario to feature file** in `features/`
-2. **Run test to see undefined steps**: `npm test`
-3. **Copy snippet suggestions** from output
-4. **Implement steps** in `src/step-definitions/`
-5. **Add page methods** if needed in `src/pages/`
-6. **Run test** to verify: `npm test`
-
-## Environment Configuration
-
-Copy `.env.example` to `.env` and configure:
-
-```bash
-HEADLESS=false          # Show browser window
-SLOWMO=500              # Slow down actions (ms)
-CI=false                # CI mode (headless, no slowmo)
-TIMEOUT=60000           # Test timeout (ms)
-PARALLEL_WORKERS=2      # Parallel execution
-```
-
-## Allure Reports
-
-```bash
-# Generate Allure report
-npm run allure:generate
-
-# Serve report locally
-npm run allure:serve
-```
+---
 
 ## Quick Reference
 
-| Task | Command/Location |
-|------|-----------------|
-| Run all tests | `npm test` |
-| Run in parallel | `npm run test:parallel` |
-| Add feature | `features/*.feature` |
-| Add steps | `src/step-definitions/*.steps.ts` |
-| Add page object | `src/pages/*.page.ts` |
-| View traces | `npx playwright show-trace reports/traces/*.zip` |
-| View report | `npm run allure:serve` |
+| Task | Code |
+|------|------|
+| Click button | `page.getByRole('button', { name: 'X' }).click()` |
+| Fill input | `page.getByLabel('Email').fill('test@test.com')` |
+| Select option | `page.getByRole('combobox').selectOption('value')` |
+| Check checkbox | `page.getByRole('checkbox').check()` |
+| Wait visible | `locator.waitFor({ state: 'visible' })` |
+| Assert text | `expect(locator).toHaveText('text')` |
+| Assert URL | `expect(page).toHaveURL(/dashboard/)` |
+| Screenshot | `page.screenshot({ path: 'shot.png' })` |
+| Debug | `page.pause()` |
