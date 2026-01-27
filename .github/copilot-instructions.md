@@ -1,98 +1,170 @@
-# BDD Test Automation Framework - AI Agent Instructions
+# AI-Assisted BDD Test Automation
 
-## Project Overview
-BDD UI automation framework: **Playwright + Cucumber.js + TypeScript** with Page Object Model. Supports testing any web application with Allure/Cucumber reporting.
+## Project Vision
+
+This is a **vibe coding/testing** template where **BDD scenarios are the central knowledge base**. Gherkin feature files serve as:
+- **Living documentation** - Human-readable test cases
+- **AI reference** - Structured scenarios that AI agents can understand and generate
+- **Source of truth** - Single place for test knowledge
+
+## Skills Reference
+
+Before generating or modifying tests, review the relevant skills:
+
+| Skill | When to Use |
+|-------|-------------|
+| `.github/skills/playwright-skill/SKILL.md` | Creating page objects, step definitions, running tests |
+| `.github/skills/bdd-gherkin-skill/SKILL.md` | Writing Gherkin scenarios, using Outlines, Data Tables, Rules |
 
 ## Architecture
 
-### Page Object Model with Lazy Registry
+### Central Knowledge Flow
 ```
-src/core/basePage.ts      → Abstract base class (goto, pause, getCurrentUrl, getPageTitle)
-src/pages/*.page.ts       → Concrete pages extend BasePage, declare Locator properties
-src/support/world.ts      → CustomWorld with pageRegistry Map + scenarioData Map
+features/*.feature (Gherkin)     ← CENTRAL KNOWLEDGE
+        ↓
+src/step-definitions/*.steps.ts  ← Step implementations
+        ↓
+src/pages/*.page.ts              ← Page abstractions
+        ↓
+src/core/basePage.ts             ← Base class
 ```
 
-**Pattern**: Pages instantiated via `this.getPage(PageClass)` - cached in `pageRegistry`, not created per-step.
+### Page Object Model with Lazy Registry
+```typescript
+// Pages cached in registry, not created per-step
+const loginPage = await this.getPage(LoginPage);
+```
 
 ### Step Definition Pattern
 ```typescript
-// Declare page variables at module scope
 let homePage: HomePage;
 let loginPage: LoginPage;
 
-// Initialize ALL pages once in BeforeStep (not per-step)
 BeforeStep(async function (this: CustomWorld) {
   [homePage, loginPage] = await Promise.all([
     this.getPage(HomePage),
     this.getPage(LoginPage),
   ]);
 });
+
+When('I click the {string} button', async function (buttonName: string) {
+  await homePage.clickButton(buttonName);
+});
 ```
 
 ### Scenario Data Storage
-Use `setData()`/`getData()` instead of attaching properties to `this`:
 ```typescript
-this.setData('copiedText', text);           // Store
-const text = this.getData<string>('copiedText'); // Retrieve
+this.setData('userEmail', email);              // Store
+const email = this.getData<string>('userEmail'); // Retrieve
 ```
 
 ## Key Conventions
 
-### Locators - Use Accessible Selectors
+### Locators - Always Use Accessible Selectors
 ```typescript
-// ✅ Preferred - resilient to DOM changes
-page.getByRole('navigation').getByRole('link', { name: 'About' })
+// BEST - Resilient to DOM changes
 page.getByRole('button', { name: 'Submit' })
 page.getByLabel('Email')
+page.getByText('Welcome')
 
-// ❌ Avoid CSS/XPath unless necessary
-page.locator('nav a.menu-item')
-page.locator('#submit-btn')
+// AVOID - Fragile
+page.locator('.btn-submit')
+page.locator('#email-input')
 ```
 
-### Feature Files
-- Use **Background** blocks for shared setup steps
-- Parametrize with `{string}` placeholders: `When I click on the {string} button`
-- Assertions use Playwright's `expect()`, not Cucumber assertions
+### Feature Files - Parameterize Steps
+```gherkin
+# GOOD - Reusable
+When I click the {string} button
+Then I should see {string} message
 
-### Browser Configuration (hooks.ts)
-Browser context includes userAgent, locale, timezone, and optional `navigator.webdriver` override. Configure as needed for target application.
+# AVOID - Hardcoded
+When I click the Submit button
+Then I should see Success message
+```
+
+### Assertions - Use Playwright's expect()
+```typescript
+import { expect } from '@playwright/test';
+
+await expect(page.getByText('Success')).toBeVisible();
+await expect(page).toHaveURL(/dashboard/);
+```
 
 ## Commands
 
 | Task | Command |
 |------|---------|
-| Run tests (headed) | `npm test` |
+| Run tests | `npm test` |
 | Run headless | `HEADLESS=true npm test` |
-| Parallel (2 workers) | `npm run test:parallel` |
-| Debug mode | `npm run test:debug` |
-| Allure report | `npm run allure:generate && npm run allure:serve` |
-| Docker test | `npm run docker:test` |
+| Run parallel | `npm run test:parallel` |
+| View report | `npm run allure:serve` |
+| View trace | `npx playwright show-trace reports/traces/*.zip` |
+
+## Adding New Tests
+
+### 1. Create Feature File
+```gherkin
+# features/login.feature
+Feature: User Login
+  Background:
+    Given I navigate to the application
+
+  Scenario: Successful login
+    When I enter "user@test.com" in the email field
+    And I click the "Sign In" button
+    Then I should see the dashboard
+```
+
+### 2. Create Page Object (if needed)
+```typescript
+// src/pages/login.page.ts
+export class LoginPage extends BasePage {
+  readonly emailInput = () => this.page.getByLabel('Email');
+  readonly signInButton = () => this.page.getByRole('button', { name: 'Sign In' });
+}
+```
+
+### 3. Add Step Definitions
+```typescript
+// src/step-definitions/login.steps.ts
+When('I enter {string} in the email field', async function (email: string) {
+  await loginPage.emailInput().fill(email);
+});
+```
+
+## AI Agents
+
+| Agent | When to Use |
+|-------|-------------|
+| `playwright-test-generator` | Create new tests from requirements |
+| `playwright-test-planner` | Explore app and design test scenarios |
+| `playwright-test-healer` | Fix broken or failing tests |
+| `playwright-test-reviewer` | Review test quality before merging |
+
+### Recommended Workflow
+```
+1. Planner    → Design scenarios
+2. Generator  → Implement tests
+3. Reviewer   → Quality check
+4. Healer     → Fix any issues
+```
 
 ## File Reference
 
 | Path | Purpose |
 |------|---------|
-| `src/core/basePage.ts` | Base class for all page objects |
-| `src/support/world.ts` | CustomWorld, page registry, scenario data |
-| `src/support/hooks.ts` | Browser setup, tracing, screenshots on failure |
-| `src/step-definitions/` | Gherkin step implementations |
-| `src/pages/*.page.ts` | Page objects |
-| `cucumber.js` | Cucumber paths, reporters, ts-node config |
-
-## Adding New Features
-
-### New Page Object
-1. Create `src/pages/newpage.page.ts` extending `BasePage`
-2. Declare `Locator` properties in constructor using accessible selectors
-3. Add interaction methods that await locators
-
-### New Step Definition
-1. Import page class in step definition file
-2. Add to module-scope variable and `BeforeStep` Promise.all
-3. Implement step using `Given`/`When`/`Then` from `@cucumber/cucumber`
+| `features/*.feature` | **Central Knowledge** - Gherkin scenarios |
+| `src/pages/*.page.ts` | Page objects with locators |
+| `src/step-definitions/*.steps.ts` | Step implementations |
+| `src/core/basePage.ts` | Base class for pages |
+| `src/support/world.ts` | CustomWorld, page registry |
+| `src/support/hooks.ts` | Browser setup, tracing |
+| `.github/skills/` | **AI Learning** - Framework patterns |
+| `.github/agents/` | **AI Automation** - Test agents |
 
 ## Debugging
-- **Traces**: Auto-captured to `reports/traces/` for all scenarios
-- **Screenshots**: Auto-captured to `reports/screenshots/` on failure
-- **Inspector**: Add `await page.pause()` to drop into Playwright Inspector
+
+- **Traces**: `reports/traces/` - Auto-captured for all scenarios
+- **Screenshots**: `reports/screenshots/` - Auto-captured on failure
+- **Inspector**: `await page.pause()` - Opens Playwright Inspector

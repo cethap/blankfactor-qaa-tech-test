@@ -1,45 +1,97 @@
-# Blankfactor QA Automation
+# BDD Test Automation Template
 
-BDD-style automated testing framework using Playwright, Cucumber, and TypeScript with Page Object Model architecture.
+An AI-assisted test automation template using **Playwright + Cucumber.js + TypeScript**. Designed for **vibe coding/testing** where BDD scenarios serve as a central knowledge base that both humans and AI agents can understand and generate.
 
-First that all you need to know that this project builds expose a static website with the Allure report:
+## Vision
 
-See this link to view the history of Allure report: **https://cethap.github.io/blankfactor-qaa-tech-test/**
+This project enables **AI-powered test automation** where:
 
-You can also view the trace viewer for each test run by clicking on view trace viewer link.
+- **Gherkin is the source of truth** - Human-readable scenarios document test cases
+- **Skills teach AI agents** the framework patterns and best practices
+- **Agents generate, heal, and plan** tests using skills as reference
+- **Feature files are living documentation** - valuable for humans and AI alike
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    CENTRAL KNOWLEDGE                        │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │           features/*.feature (Gherkin)               │   │
+│  │     Human-readable scenarios = Test documentation    │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                          ▲                                  │
+│            ┌─────────────┼─────────────┐                   │
+│            │             │             │                   │
+│     ┌──────┴──────┐ ┌────┴────┐ ┌──────┴──────┐           │
+│     │   Skills    │ │  Agents │ │   Humans    │           │
+│     │ (Reference) │ │(Generate)│ │  (Review)   │           │
+│     └─────────────┘ └─────────┘ └─────────────┘           │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ## Features
 
-- ✅ **BDD Framework** - Cucumber.js with Gherkin syntax
-- ✅ **Page Object Model** - Scalable and maintainable architecture
-- ✅ **CI/CD** - GitHub Actions workflow
-- ✅ **Multiple Reports** - HTML, JSON, XML formats, Allure report
-- ✅ **Screenshots on Failure** - Automatic capture and upload
-- ✅ **Parallel Execution** - Fast test runs
-- ✅ **Playwright Trace Viewer** - One-click trace debugging in browser
+- **BDD Framework** - Cucumber.js with Gherkin syntax as central knowledge
+- **AI Skills** - Teaching documents for AI agents (BDD patterns, Playwright API)
+- **AI Agents** - Generator, Healer, Planner for test automation
+- **Page Object Model** - Scalable and maintainable architecture
+- **CI/CD** - GitHub Actions with Allure reporting
+- **Trace Debugging** - Playwright traces for every scenario
 
-## Tech Stack
+## Project Structure
 
-- **TypeScript** - Primary programming language
-- **Playwright** - Browser automation framework
-- **Cucumber** - BDD framework with Gherkin syntax
-- **Docker** - Containerization for consistent environments
-- **GitHub Actions** - CI/CD pipeline
+```
+├── features/                    # CENTRAL KNOWLEDGE - Gherkin scenarios
+│   └── *.feature                # Human-readable test documentation
+├── src/
+│   ├── pages/                   # Page Objects (UI abstractions)
+│   ├── step-definitions/        # Step implementations
+│   ├── core/basePage.ts         # Base class for pages
+│   └── support/                 # World, hooks, configuration
+├── .github/
+│   ├── skills/                  # AI LEARNING - Framework patterns
+│   │   ├── playwright-skill/    # Playwright + Cucumber patterns
+│   │   └── bdd-gherkin-skill/   # BDD best practices & syntax
+│   └── agents/                  # AI AUTOMATION
+│       ├── playwright-test-generator.agent.md
+│       ├── playwright-test-healer.agent.md
+│       └── playwright-test-planner.agent.md
+└── reports/                     # Test outputs (traces, screenshots)
+```
+
+## Skills (AI Learning Reference)
+
+Skills are teaching documents that help AI agents understand the framework:
+
+| Skill | Purpose |
+|-------|---------|
+| `playwright-skill` | Playwright + Cucumber patterns, Page Object Model, step definitions |
+| `bdd-gherkin-skill` | BDD best practices, Gherkin syntax, Scenario Outlines, Data Tables |
+
+AI agents reference these skills to:
+- Generate consistent, well-structured tests
+- Follow established patterns and conventions
+- Use accessible locators (getByRole, getByLabel)
+- Write reusable, parameterized steps
+
+## Agents (AI Automation)
+
+| Agent | Purpose |
+|-------|---------|
+| `playwright-test-generator` | Creates new feature files, page objects, step definitions |
+| `playwright-test-healer` | Fixes broken tests, updates locators, debugs failures |
+| `playwright-test-planner` | Explores applications, designs test scenarios, plans coverage |
+| `playwright-test-reviewer` | Reviews scenarios for quality, anti-patterns, suggests improvements |
 
 ## Quick Start
 
 ### Prerequisites
 
-- Node.js 24.12.0 or higher
+- Node.js 18+
 - npm or yarn
 
 ### Installation
 
 ```bash
-# Clone repository
-git clone <repository-url>
-cd blankfactor-qa-automation
-
 # Install dependencies
 npm install
 
@@ -50,50 +102,84 @@ npx playwright install chromium
 ### Running Tests
 
 ```bash
-# Run all tests (default: headed mode for debugging)
+# Run all tests (headed mode)
 npm test
 
-# Run in headless mode (CI)
+# Run headless (CI mode)
 HEADLESS=true npm test
+
+# Run in parallel
+npm run test:parallel
 ```
 
-### Docker Execution
+## BDD Workflow
 
-```bash
-# Run tests in Docker
-npm run docker:test
+### 1. Write Feature (or let AI generate)
+
+```gherkin
+Feature: User Authentication
+  As a user I want to log in to access my account
+
+  Background:
+    Given I navigate to the application
+
+  Scenario: Successful login
+    When I enter "user@example.com" in the email field
+    And I enter "password123" in the password field
+    And I click the "Sign In" button
+    Then I should see the dashboard
 ```
 
-## Architecture
-
-### Page Object Model
-
-This project uses a scalable POM pattern with lazy-loaded page registry:
+### 2. Implement Page Object
 
 ```typescript
-let bfPage: BlankfactorPage;
-// Helper function for page access
-BeforeStep(async function (this:CustomWorld) {
-  bfPage = await this.getPage(BlankfactorPage);
-});
+// src/pages/login.page.ts
+export class LoginPage extends BasePage {
+  readonly emailInput = () => this.page.getByLabel('Email');
+  readonly passwordInput = () => this.page.getByLabel('Password');
+  readonly signInButton = () => this.page.getByRole('button', { name: 'Sign In' });
 
-// Use in steps
-Given('I navigate to {string}', async function (this: CustomWorld, url: string) {
-  await bfPage.goto(url);
-});
+  async login(email: string, password: string) {
+    await this.emailInput().fill(email);
+    await this.passwordInput().fill(password);
+    await this.signInButton().click();
+  }
+}
 ```
 
-### Scenario Data Storage
-
-Store test data without polluting the world:
+### 3. Implement Step Definitions
 
 ```typescript
-// Store data
-this.setData('copiedText', text);
+// src/step-definitions/login.steps.ts
+let loginPage: LoginPage;
 
-// Retrieve data
-const text = this.getData<string>('copiedText');
+BeforeStep(async function (this: CustomWorld) {
+  loginPage = await this.getPage(LoginPage);
+});
+
+When('I enter {string} in the email field', async function (email: string) {
+  await loginPage.emailInput().fill(email);
+});
 ```
+
+## AI-Assisted Development
+
+### Using Skills as Reference
+
+When working with AI coding assistants, point them to the skills:
+
+```
+"Reference .github/skills/playwright-skill/SKILL.md for the project patterns"
+"Use .github/skills/bdd-gherkin-skill/SKILL.md for Gherkin syntax"
+```
+
+### Using Agents
+
+Agents can be invoked to automate test creation:
+
+- **Generator**: "Create a login feature with page object and steps"
+- **Healer**: "Fix the failing tests in features/checkout.feature"
+- **Planner**: "Explore the /products page and design test scenarios"
 
 ## Configuration
 
@@ -101,100 +187,46 @@ const text = this.getData<string>('copiedText');
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `HEADLESS` | Run in headless mode | `false` |
+| `HEADLESS` | Run browser in headless mode | `false` |
+| `SLOWMO` | Slow down actions (ms) | `500` (headed) / `0` (headless) |
 | `CI` | CI environment flag | `false` |
-| `NODE_ENV` | Node environment | `test` |
-
-### Browser Settings
-
-Edit [features/support/hooks.ts](features/support/hooks.ts):
-
-```typescript
-browser = await chromium.launch({
-  headless: isHeadless,  // Auto-configured from env vars
-  slowMo: slowMo,        // 500ms in headed, 0ms in headless
-});
-```
-
-## CI/CD
-
-### GitHub Actions
-
-The project includes a complete CI/CD pipeline:
-
-- ✅ Runs on push/PR to main/develop
-- ✅ Manual trigger support
-- ✅ Scheduled daily runs
-- ✅ Parallel execution
-- ✅ Docker-based testing
-- ✅ Artifact uploads
-- ✅ Test result publishing
-
-📖 [Read full CI/CD documentation](DOCKER.md)
+| `TIMEOUT` | Test timeout (ms) | `60000` |
 
 ## NPM Scripts
-
-### Test Execution
 
 | Command | Description |
 |---------|-------------|
 | `npm test` | Run all tests |
-| `npm run test:parallel` | Run tests in parallel (2 workers) |
-| `npm run test:report` | Generate HTML report |
+| `npm run test:parallel` | Run with 2 parallel workers |
 | `npm run test:debug` | Run with fail-fast |
-| `npm run test:ci` | Run with JSON output for CI |
-
+| `npm run test:report` | Generate HTML report |
+| `npm run allure:serve` | View Allure report |
 
 ## Debugging
 
-### Playwright Trace Viewer Integration
+### Playwright Traces
 
-All test scenarios automatically capture Playwright traces. When viewing Allure reports on GitHub Pages, clicking on a `trace.zip` attachment automatically opens it in the [Playwright Trace Viewer](https://trace.playwright.dev/).
+All scenarios capture traces automatically:
 
-**How it works:**
-1. Every test scenario records a trace with screenshots, snapshots, and network activity
-2. Traces are attached to the Allure report
-3. Click any trace.zip attachment in the report
-4. Automatically redirects to `https://trace.playwright.dev/?trace={GITHUB_PAGES_URL}`
-5. Debug the test execution timeline, DOM snapshots, network requests, and console logs
-
-**Local trace viewing:**
 ```bash
-# Generate report with traces
-npm run allure:generate
-
-# Serve the report locally
-npm run allure:serve
-
-# Or view a specific trace file directly
+# View a trace file
 npx playwright show-trace reports/traces/trace-*.zip
 ```
 
-### Using Playwright Inspector
+### Playwright Inspector
 
-In your page object:
-
-```typescript
-async pause() {
-  await this.page.pause();
-}
-```
-
-In step definition with extended timeout:
+Add to any page method:
 
 ```typescript
-When('I navigate to Industries section', { timeout: 60 * 1000 * 10 }, async function (this: CustomWorld) {
-  await bfPage(this).pause();  // Opens Playwright Inspector
-  await bfPage(this).hoverOnIndustries();
-});
+await this.page.pause();  // Opens Playwright Inspector
 ```
 
-### Headed Mode
+## Contributing
 
-```bash
-# Run with visible browser
-HEADLESS=false npm test
-```
+1. Write/update feature files with clear Gherkin scenarios
+2. Implement page objects with accessible locators
+3. Keep skills updated with new patterns
+4. Test with `npm test` before committing
 
 ## License
 

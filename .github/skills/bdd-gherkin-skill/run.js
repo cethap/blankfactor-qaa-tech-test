@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /**
- * BDD Gherkin Skill - Feature File Validator and Generator
+ * BDD Gherkin Skill - Feature File Validator, Generator, and Reviewer
  *
  * Usage:
  *   node run.js --validate              # Validate all feature files
  *   node run.js --lint                  # Check for anti-patterns
+ *   node run.js --review                # Full quality review with scoring
  *   node run.js --generate <name>       # Generate feature template
  *   node run.js --analyze               # Analyze feature coverage
  */
@@ -22,6 +23,7 @@ function parseArgs() {
   const options = {
     validate: false,
     lint: false,
+    review: false,
     generate: null,
     analyze: false,
     help: false,
@@ -36,6 +38,10 @@ function parseArgs() {
       case '--lint':
       case '-l':
         options.lint = true;
+        break;
+      case '--review':
+      case '-r':
+        options.review = true;
         break;
       case '--generate':
       case '-g':
@@ -65,6 +71,7 @@ Usage:
 Options:
   --validate, -v         Validate all feature files for syntax
   --lint, -l             Check for BDD anti-patterns
+  --review, -r           Full quality review with scoring
   --generate, -g <name>  Generate a feature file template
   --analyze, -a          Analyze feature coverage statistics
   --help, -h             Show this help message
@@ -72,6 +79,7 @@ Options:
 Examples:
   node run.js --validate                # Check all features
   node run.js --lint                    # Find anti-patterns
+  node run.js --review                  # Full quality review
   node run.js --generate login          # Create login.feature template
   node run.js --analyze                 # Show coverage stats
 `);
@@ -387,6 +395,170 @@ Feature: ${title}
   console.log('  - Scenario Outline with Examples');
 }
 
+function reviewFeatures() {
+  console.log('📋 BDD Quality Review\n');
+
+  const files = findFeatureFiles();
+  if (files.length === 0) {
+    console.log('No feature files found');
+    return;
+  }
+
+  for (const file of files) {
+    const content = fs.readFileSync(file, 'utf8');
+    const lines = content.split('\n');
+    const relativePath = path.relative(projectRoot, file);
+    const result = parseFeatureFile(file);
+
+    const issues = [];
+    const suggestions = [];
+    const goodPractices = [];
+
+    // Check for issues
+    let stepCount = 0;
+    let currentScenarioStart = 0;
+    let inScenario = false;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      const lineNum = i + 1;
+
+      // Track scenario boundaries
+      if (line.startsWith('Scenario:') || line.startsWith('Scenario Outline:')) {
+        if (inScenario && stepCount > 8) {
+          issues.push({
+            type: 'Long Scenario',
+            line: currentScenarioStart,
+            problem: `Scenario has ${stepCount} steps (recommended max: 8)`,
+            fix: 'Split into multiple focused scenarios'
+          });
+        }
+        inScenario = true;
+        currentScenarioStart = lineNum;
+        stepCount = 0;
+      }
+
+      // Count steps
+      if (/^(Given|When|Then|And|But)\s/.test(line)) {
+        stepCount++;
+      }
+
+      // Check for implementation details
+      if (/\.(click|fill|type|locator|selector|css|xpath|element|button|field|input)/i.test(line) &&
+          /^(Given|When|Then|And|But)\s/.test(line)) {
+        issues.push({
+          type: 'Implementation Detail',
+          line: lineNum,
+          problem: `Step contains technical/UI terms: "${line.substring(0, 50)}..."`,
+          fix: 'Use business language instead of UI element references'
+        });
+      }
+
+      // Check for hardcoded values that should be parameterized
+      if (/^(When|And)\s.*"[^"]+@[^"]+\.[^"]+"/.test(line) && !line.includes('{string}')) {
+        suggestions.push({
+          type: 'Parameterize Email',
+          line: lineNum,
+          current: line,
+          better: 'Consider using {string} parameter for reusability'
+        });
+      }
+
+      // Check for waiting steps
+      if (/wait\s*(for)?\s*\d+/i.test(line)) {
+        issues.push({
+          type: 'Explicit Wait',
+          line: lineNum,
+          problem: 'Explicit wait times in Gherkin',
+          fix: 'Waits should be implicit in step implementation, not in scenarios'
+        });
+      }
+
+      // Check for conjunctive steps
+      if (/^(Given|When|Then)\s.*\band\b.*\band\b/i.test(line)) {
+        issues.push({
+          type: 'Conjunctive Step',
+          line: lineNum,
+          problem: 'Multiple actions in one step',
+          fix: 'Split into separate steps using And keyword'
+        });
+      }
+    }
+
+    // Check last scenario
+    if (inScenario && stepCount > 8) {
+      issues.push({
+        type: 'Long Scenario',
+        line: currentScenarioStart,
+        problem: `Scenario has ${stepCount} steps (recommended max: 8)`,
+        fix: 'Split into multiple focused scenarios'
+      });
+    }
+
+    // Check for good practices
+    if (result.hasBackground && result.steps.given > 0) {
+      goodPractices.push('Uses Background for shared setup');
+    }
+    if (result.scenarioOutlines.length > 0) {
+      goodPractices.push('Uses Scenario Outlines for data-driven tests');
+    }
+    if (result.tags.length > 0) {
+      goodPractices.push(`Uses tags for organization (${[...new Set(result.tags)].slice(0, 3).join(', ')})`);
+    }
+    if (result.rules.length > 0) {
+      goodPractices.push('Uses Rules to group related scenarios');
+    }
+
+    // Calculate score
+    const totalScenarios = result.scenarios.length + result.scenarioOutlines.length;
+    let score = 5;
+    score -= Math.min(2, Math.floor(issues.length / 2));
+    score -= suggestions.length > 3 ? 1 : 0;
+    score = Math.max(1, score);
+
+    const stars = '⭐'.repeat(score) + '☆'.repeat(5 - score);
+
+    // Output review
+    console.log('═'.repeat(60));
+    console.log(`📄 ${relativePath}`);
+    console.log('═'.repeat(60));
+    console.log(`Quality Score: ${stars} (${score}/5)`);
+    console.log(`Scenarios: ${totalScenarios} | Issues: ${issues.length} | Suggestions: ${suggestions.length}`);
+    console.log();
+
+    if (issues.length > 0) {
+      console.log('❌ Issues (Must Fix):');
+      issues.forEach((issue, idx) => {
+        console.log(`   ${idx + 1}. [${issue.type}] Line ${issue.line}`);
+        console.log(`      Problem: ${issue.problem}`);
+        console.log(`      Fix: ${issue.fix}`);
+      });
+      console.log();
+    }
+
+    if (suggestions.length > 0) {
+      console.log('💡 Suggestions:');
+      suggestions.forEach((sug, idx) => {
+        console.log(`   ${idx + 1}. [${sug.type}] Line ${sug.line}`);
+        console.log(`      ${sug.better}`);
+      });
+      console.log();
+    }
+
+    if (goodPractices.length > 0) {
+      console.log('✅ Good Practices:');
+      goodPractices.forEach(practice => {
+        console.log(`   • ${practice}`);
+      });
+      console.log();
+    }
+  }
+
+  console.log('═'.repeat(60));
+  console.log('Review complete. Fix issues marked with ❌ first.');
+  console.log('═'.repeat(60));
+}
+
 function analyzeFeatures() {
   console.log('📊 Feature Coverage Analysis\n');
 
@@ -464,6 +636,8 @@ if (options.validate) {
   validateFeatures();
 } else if (options.lint) {
   lintFeatures();
+} else if (options.review) {
+  reviewFeatures();
 } else if (options.generate) {
   generateFeature(options.generate);
 } else if (options.analyze) {
