@@ -1,653 +1,483 @@
-# Playwright Skill - Complete API Reference
+# BDD Test Framework - API Reference
 
-This document contains the comprehensive Playwright API reference and advanced patterns. For quick-start execution patterns, see [SKILL.md](SKILL.md).
+This reference documents the project's core classes and patterns for Cucumber BDD testing with Playwright.
 
 ## Table of Contents
 
-- [Installation & Setup](#installation--setup)
-- [Core Patterns](#core-patterns)
-- [Selectors & Locators](#selectors--locators)
-- [Common Actions](#common-actions)
-- [Waiting Strategies](#waiting-strategies)
+- [BasePage Class](#basepage-class)
+- [CustomWorld Class](#customworld-class)
+- [Hooks](#hooks)
+- [Step Definition Patterns](#step-definition-patterns)
+- [Playwright Locator API](#playwright-locator-api)
 - [Assertions](#assertions)
-- [Page Object Model](#page-object-model-pom)
-- [Network & API Testing](#network--api-testing)
-- [Authentication & Session Management](#authentication--session-management)
-- [Visual Testing](#visual-testing)
-- [Mobile Testing](#mobile-testing)
-- [Debugging](#debugging)
-- [Performance Testing](#performance-testing)
-- [Parallel Execution](#parallel-execution)
-- [Data-Driven Testing](#data-driven-testing)
-- [Accessibility Testing](#accessibility-testing)
-- [CI/CD Integration](#cicd-integration)
-- [Best Practices](#best-practices)
-- [Common Patterns & Solutions](#common-patterns--solutions)
-- [Troubleshooting](#troubleshooting)
+- [Gherkin Syntax](#gherkin-syntax)
 
-## Installation & Setup
+---
 
-### Prerequisites
+## BasePage Class
 
-Before using this skill, ensure Playwright is available:
+**Location:** `src/core/basePage.ts`
 
-```bash
-# Check if Playwright is installed
-npm list playwright 2>/dev/null || echo "Playwright not installed"
+Abstract base class that all page objects must extend.
 
-# Install (if needed)
-cd ~/.claude/skills/playwright-skill
-npm run setup
-```
+### Properties
 
-### Basic Configuration
+| Property | Type | Description |
+|----------|------|-------------|
+| `page` | `Page` | Playwright Page instance |
 
-Create `playwright.config.ts`:
+### Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `goto(url: string)` | `Promise<void>` | Navigate to URL |
+| `getCurrentUrl()` | `Promise<string>` | Get current page URL |
+| `getPageTitle()` | `Promise<string>` | Get page title |
+| `pause()` | `Promise<void>` | Open Playwright Inspector for debugging |
+| `printHighlight(message: string)` | `void` | Print formatted console output |
+
+### Example Page Object
 
 ```typescript
-import { defineConfig, devices } from '@playwright/test';
+import { Page } from '@playwright/test';
+import { BasePage } from '../core/basePage';
 
-export default defineConfig({
-  testDir: './tests',
-  fullyParallel: true,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
-  reporter: 'html',
-  use: {
-    baseURL: 'http://localhost:3000',
-    trace: 'on-first-retry',
-    screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
-  },
-  projects: [
-    {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
-  ],
-  webServer: {
-    command: 'npm run start',
-    url: 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI,
-  },
+export class MyPage extends BasePage {
+  // Define locators as arrow functions (lazy evaluation)
+  private myButton = () => this.page.getByRole('button', { name: 'Click Me' });
+  private myInput = () => this.page.getByLabel('Username');
+
+  constructor(page: Page) {
+    super(page);
+  }
+
+  async clickMyButton(): Promise<void> {
+    await this.myButton().click();
+  }
+
+  async enterUsername(username: string): Promise<void> {
+    await this.myInput().fill(username);
+  }
+}
+```
+
+---
+
+## CustomWorld Class
+
+**Location:** `src/support/world.ts`
+
+Extends Cucumber's World class with Playwright integration and shared state.
+
+### Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `browser` | `Browser` | Playwright Browser instance |
+| `context` | `BrowserContext` | Browser context with settings |
+| `page` | `Page` | Current page instance |
+| `pageRegistry` | `Map<string, any>` | Cached page object instances |
+| `scenarioData` | `Map<string, any>` | Test data storage |
+
+### Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `getPage<T>(PageClass)` | `Promise<T>` | Get or create page object instance |
+| `setData(key, value)` | `void` | Store data for current scenario |
+| `getData<T>(key)` | `T \| undefined` | Retrieve stored data |
+
+### Usage in Steps
+
+```typescript
+import { Given, When, Then } from '@cucumber/cucumber';
+import { CustomWorld } from '../support/world';
+import { LoginPage } from '../pages/login.page';
+
+When('I login', async function (this: CustomWorld) {
+  // Get page object (lazy loaded, cached)
+  const loginPage = await this.getPage(LoginPage);
+  await loginPage.login('user', 'pass');
+
+  // Store data for later steps
+  this.setData('loggedInUser', 'user');
+});
+
+Then('I am logged in as the user', async function (this: CustomWorld) {
+  // Retrieve stored data
+  const user = this.getData<string>('loggedInUser');
+  // ... assertions
 });
 ```
 
-## Core Patterns
+---
 
-### Basic Browser Automation
+## Hooks
 
-```javascript
-const { chromium } = require('playwright');
+**Location:** `src/support/hooks.ts`
 
-(async () => {
-  // Launch browser
-  const browser = await chromium.launch({
-    headless: false,  // Set to true for headless mode
-    slowMo: 50       // Slow down operations by 50ms
-  });
+### BeforeAll
 
-  const context = await browser.newContext({
-    viewport: { width: 1280, height: 720 },
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-  });
-
-  const page = await context.newPage();
-
-  // Navigate
-  await page.goto('https://example.com', {
-    waitUntil: 'networkidle'  // Wait for network to be idle
-  });
-
-  // Your automation here
-
-  await browser.close();
-})();
-```
-
-### Test Structure
+Launches browser once per test run.
 
 ```typescript
-import { test, expect } from '@playwright/test';
-
-test.describe('Feature Name', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/');
-  });
-
-  test('should do something', async ({ page }) => {
-    // Arrange
-    const button = page.locator('button[data-testid="submit"]');
-
-    // Act
-    await button.click();
-
-    // Assert
-    await expect(page).toHaveURL('/success');
-    await expect(page.locator('.message')).toHaveText('Success!');
-  });
+BeforeAll(async function () {
+  // Browser is launched with headless/headed mode based on env
 });
 ```
 
-## Selectors & Locators
+### Before (per scenario)
 
-### Best Practices for Selectors
+Sets up browser context with:
+- User-Agent override
+- Locale and timezone
+- Extra HTTP headers (anti-bot)
+- Playwright tracing
 
-```javascript
-// PREFERRED: Data attributes (most stable)
-await page.locator('[data-testid="submit-button"]').click();
-await page.locator('[data-cy="user-input"]').fill('text');
+### After (per scenario)
 
-// GOOD: Role-based selectors (accessible)
-await page.getByRole('button', { name: 'Submit' }).click();
-await page.getByRole('textbox', { name: 'Email' }).fill('user@example.com');
-await page.getByRole('heading', { level: 1 }).click();
+- Captures screenshot on failure
+- Saves trace file
+- Closes page and context
 
-// GOOD: Text content (for unique text)
-await page.getByText('Sign in').click();
-await page.getByText(/welcome back/i).click();
+### AfterAll
 
-// OK: Semantic HTML
-await page.locator('button[type="submit"]').click();
-await page.locator('input[name="email"]').fill('test@test.com');
+Closes browser instance.
 
-// AVOID: Classes and IDs (can change frequently)
-await page.locator('.btn-primary').click();  // Avoid
-await page.locator('#submit').click();       // Avoid
+---
 
-// LAST RESORT: Complex CSS/XPath
-await page.locator('div.container > form > button').click();  // Fragile
+## Step Definition Patterns
+
+### Basic Structure
+
+```typescript
+import { Given, When, Then, BeforeStep } from '@cucumber/cucumber';
+import { expect } from '@playwright/test';
+import { CustomWorld } from '../support/world';
+import { MyPage } from '../pages/my.page';
+
+// Module-level page reference
+let myPage: MyPage;
+
+// Initialize once per step
+BeforeStep(async function (this: CustomWorld) {
+  myPage = await this.getPage(MyPage);
+});
+
+// Step implementations
+Given('I am on the home page', async function (this: CustomWorld) {
+  await myPage.goto('https://example.com');
+});
+
+When('I click the {string} button', async function (this: CustomWorld, buttonName: string) {
+  await myPage.clickButton(buttonName);
+});
+
+Then('I should see {string}', async function (this: CustomWorld, text: string) {
+  await expect(this.page.getByText(text)).toBeVisible();
+});
 ```
 
-### Advanced Locator Patterns
+### Cucumber Expressions
 
-```javascript
-// Filter and chain locators
-const row = page.locator('tr').filter({ hasText: 'John Doe' });
-await row.locator('button').click();
+| Expression | Matches | Example |
+|------------|---------|---------|
+| `{string}` | Quoted string | `"hello"` |
+| `{int}` | Integer | `42` |
+| `{float}` | Decimal | `3.14` |
+| `{word}` | Single word | `foo` |
+| `{}` | Any text | anything |
 
-// Nth element
-await page.locator('button').nth(2).click();
+```typescript
+Given('I have {int} items in my cart', async function (count: number) {
+  // count is parsed as integer
+});
 
-// Combining conditions
-await page.locator('button').and(page.locator('[disabled]')).count();
-
-// Parent/child navigation
-const cell = page.locator('td').filter({ hasText: 'Active' });
-const row = cell.locator('..');
-await row.locator('button.edit').click();
+When('I search for {string}', async function (query: string) {
+  // query is the text inside quotes
+});
 ```
 
-## Common Actions
+### Data Tables
 
-### Form Interactions
+```gherkin
+When I fill in the form:
+  | field    | value          |
+  | name     | John Doe       |
+  | email    | john@test.com  |
+```
 
-```javascript
-// Text input
-await page.getByLabel('Email').fill('user@example.com');
-await page.getByPlaceholder('Enter your name').fill('John Doe');
+```typescript
+When('I fill in the form:', async function (this: CustomWorld, dataTable: DataTable) {
+  const rows = dataTable.hashes();
+  for (const row of rows) {
+    await this.page.getByLabel(row.field).fill(row.value);
+  }
+});
+```
 
-// Clear and type
-await page.locator('#username').clear();
-await page.locator('#username').type('newuser', { delay: 100 });
+---
+
+## Playwright Locator API
+
+### Preferred Locators (Most Resilient)
+
+```typescript
+// By role (BEST - semantic, accessible)
+page.getByRole('button', { name: 'Submit' });
+page.getByRole('link', { name: 'Home' });
+page.getByRole('heading', { level: 1 });
+page.getByRole('textbox', { name: 'Email' });
+page.getByRole('checkbox', { name: 'Accept terms' });
+page.getByRole('navigation');
+page.getByRole('main');
+
+// By label (forms)
+page.getByLabel('Email address');
+page.getByPlaceholder('Enter email');
+
+// By text
+page.getByText('Welcome');
+page.getByText(/welcome/i);  // case-insensitive
+```
+
+### Secondary Locators
+
+```typescript
+// By test ID
+page.getByTestId('submit-button');
+
+// CSS selector
+page.locator('.my-class');
+page.locator('#my-id');
+page.locator('[data-testid="foo"]');
+
+// Combining locators
+page.locator('div').filter({ hasText: 'Hello' });
+page.locator('tr').filter({ has: page.locator('td', { hasText: 'Active' }) });
+```
+
+### Locator Actions
+
+```typescript
+// Click
+await locator.click();
+await locator.click({ button: 'right' });
+await locator.dblclick();
+
+// Fill input
+await locator.fill('text');
+await locator.clear();
+await locator.type('text', { delay: 100 });
+
+// Select
+await locator.selectOption('value');
+await locator.selectOption({ label: 'Option Text' });
 
 // Checkbox
-await page.getByLabel('I agree').check();
-await page.getByLabel('Subscribe').uncheck();
-
-// Radio button
-await page.getByLabel('Option 2').check();
-
-// Select dropdown
-await page.selectOption('select#country', 'usa');
-await page.selectOption('select#country', { label: 'United States' });
-await page.selectOption('select#country', { index: 2 });
-
-// Multi-select
-await page.selectOption('select#colors', ['red', 'blue', 'green']);
-
-// File upload
-await page.setInputFiles('input[type="file"]', 'path/to/file.pdf');
-await page.setInputFiles('input[type="file"]', [
-  'file1.pdf',
-  'file2.pdf'
-]);
-```
-
-### Mouse Actions
-
-```javascript
-// Click variations
-await page.click('button');                          // Left click
-await page.click('button', { button: 'right' });    // Right click
-await page.dblclick('button');                       // Double click
-await page.click('button', { position: { x: 10, y: 10 } });  // Click at position
+await locator.check();
+await locator.uncheck();
 
 // Hover
-await page.hover('.menu-item');
+await locator.hover();
 
-// Drag and drop
-await page.dragAndDrop('#source', '#target');
+// Scroll
+await locator.scrollIntoViewIfNeeded();
 
-// Manual drag
-await page.locator('#source').hover();
-await page.mouse.down();
-await page.locator('#target').hover();
-await page.mouse.up();
+// Wait
+await locator.waitFor({ state: 'visible' });
+await locator.waitFor({ state: 'hidden', timeout: 5000 });
+
+// Get text/attributes
+const text = await locator.textContent();
+const innerText = await locator.innerText();
+const value = await locator.inputValue();
+const attr = await locator.getAttribute('href');
 ```
 
-### Keyboard Actions
-
-```javascript
-// Type with delay
-await page.keyboard.type('Hello World', { delay: 100 });
-
-// Key combinations
-await page.keyboard.press('Control+A');
-await page.keyboard.press('Control+C');
-await page.keyboard.press('Control+V');
-
-// Special keys
-await page.keyboard.press('Enter');
-await page.keyboard.press('Tab');
-await page.keyboard.press('Escape');
-await page.keyboard.press('ArrowDown');
-```
-
-## Waiting Strategies
-
-### Smart Waiting
-
-```javascript
-// Wait for element states
-await page.locator('button').waitFor({ state: 'visible' });
-await page.locator('.spinner').waitFor({ state: 'hidden' });
-await page.locator('button').waitFor({ state: 'attached' });
-await page.locator('button').waitFor({ state: 'detached' });
-
-// Wait for specific conditions
-await page.waitForURL('**/success');
-await page.waitForURL(url => url.pathname === '/dashboard');
-
-// Wait for network
-await page.waitForLoadState('networkidle');
-await page.waitForLoadState('domcontentloaded');
-
-// Wait for function
-await page.waitForFunction(() => document.querySelector('.loaded'));
-await page.waitForFunction(
-  text => document.body.innerText.includes(text),
-  'Content loaded'
-);
-
-// Wait for response
-const responsePromise = page.waitForResponse('**/api/users');
-await page.click('button#load-users');
-const response = await responsePromise;
-
-// Wait for request
-await page.waitForRequest(request =>
-  request.url().includes('/api/') && request.method() === 'POST'
-);
-
-// Custom timeout
-await page.locator('.slow-element').waitFor({
-  state: 'visible',
-  timeout: 10000  // 10 seconds
-});
-```
+---
 
 ## Assertions
 
-### Common Assertions
+### Playwright Expect API
 
-```javascript
+```typescript
 import { expect } from '@playwright/test';
 
 // Page assertions
 await expect(page).toHaveTitle('My App');
-await expect(page).toHaveURL('https://example.com/dashboard');
 await expect(page).toHaveURL(/.*dashboard/);
 
 // Element visibility
-await expect(page.locator('.message')).toBeVisible();
-await expect(page.locator('.spinner')).toBeHidden();
-await expect(page.locator('button')).toBeEnabled();
-await expect(page.locator('input')).toBeDisabled();
+await expect(locator).toBeVisible();
+await expect(locator).toBeHidden();
+await expect(locator).toBeEnabled();
+await expect(locator).toBeDisabled();
 
-// Text content
-await expect(page.locator('h1')).toHaveText('Welcome');
-await expect(page.locator('.message')).toContainText('success');
-await expect(page.locator('.items')).toHaveText(['Item 1', 'Item 2']);
+// Text assertions
+await expect(locator).toHaveText('Exact text');
+await expect(locator).toContainText('partial');
+await expect(locator).toHaveText(/regex/i);
 
 // Input values
-await expect(page.locator('input')).toHaveValue('test@example.com');
-await expect(page.locator('input')).toBeEmpty();
+await expect(locator).toHaveValue('input value');
+await expect(locator).toBeEmpty();
 
-// Attributes
-await expect(page.locator('button')).toHaveAttribute('type', 'submit');
-await expect(page.locator('img')).toHaveAttribute('src', /.*\.png/);
-
-// CSS properties
-await expect(page.locator('.error')).toHaveCSS('color', 'rgb(255, 0, 0)');
+// Attributes/CSS
+await expect(locator).toHaveAttribute('href', '/home');
+await expect(locator).toHaveClass(/active/);
+await expect(locator).toHaveCSS('color', 'rgb(0, 0, 0)');
 
 // Count
-await expect(page.locator('.item')).toHaveCount(5);
+await expect(locator).toHaveCount(5);
 
-// Checkbox/Radio state
-await expect(page.locator('input[type="checkbox"]')).toBeChecked();
+// Checkbox state
+await expect(locator).toBeChecked();
 ```
 
-## Page Object Model (POM)
+### Soft Assertions (Non-Blocking)
 
-### Basic Page Object
-
-```javascript
-// pages/LoginPage.js
-class LoginPage {
-  constructor(page) {
-    this.page = page;
-    this.usernameInput = page.locator('input[name="username"]');
-    this.passwordInput = page.locator('input[name="password"]');
-    this.submitButton = page.locator('button[type="submit"]');
-    this.errorMessage = page.locator('.error-message');
-  }
-
-  async navigate() {
-    await this.page.goto('/login');
-  }
-
-  async login(username, password) {
-    await this.usernameInput.fill(username);
-    await this.passwordInput.fill(password);
-    await this.submitButton.click();
-  }
-
-  async getErrorMessage() {
-    return await this.errorMessage.textContent();
-  }
-}
-
-// Usage in test
-test('login with valid credentials', async ({ page }) => {
-  const loginPage = new LoginPage(page);
-  await loginPage.navigate();
-  await loginPage.login('user@example.com', 'password123');
-  await expect(page).toHaveURL('/dashboard');
-});
+```typescript
+await expect.soft(locator).toHaveText('text');
+// Test continues even if this fails
 ```
 
-## Network & API Testing
+---
 
-### Intercepting Requests
+## Gherkin Syntax
 
-```javascript
-// Mock API responses
-await page.route('**/api/users', route => {
-  route.fulfill({
-    status: 200,
-    contentType: 'application/json',
-    body: JSON.stringify([
-      { id: 1, name: 'John' },
-      { id: 2, name: 'Jane' }
-    ])
-  });
-});
+### Feature File Structure
 
-// Modify requests
-await page.route('**/api/**', route => {
-  const headers = {
-    ...route.request().headers(),
-    'X-Custom-Header': 'value'
-  };
-  route.continue({ headers });
-});
+```gherkin
+@tag1 @tag2
+Feature: Feature Name
+  As a <role>
+  I want <feature>
+  So that <benefit>
 
-// Block resources
-await page.route('**/*.{png,jpg,jpeg,gif}', route => route.abort());
+  Background:
+    Given common setup steps
+    And more setup
+
+  @smoke
+  Scenario: Scenario name
+    Given initial state
+    When action happens
+    Then expected outcome
+    And another outcome
+
+  Scenario Outline: Parameterized scenario
+    Given I have <count> items
+    When I add <more> items
+    Then I should have <total> items
+
+    Examples:
+      | count | more | total |
+      | 1     | 2    | 3     |
+      | 5     | 5    | 10    |
 ```
 
-### Custom Headers via Environment Variables
-
-The skill supports automatic header injection via environment variables:
+### Running Tagged Scenarios
 
 ```bash
-# Single header (simple)
-PW_HEADER_NAME=X-Automated-By PW_HEADER_VALUE=playwright-skill
+# Run only @smoke tagged scenarios
+npm test -- --tags "@smoke"
 
-# Multiple headers (JSON)
-PW_EXTRA_HEADERS='{"X-Automated-By":"playwright-skill","X-Request-ID":"123"}'
+# Run excluding @wip
+npm test -- --tags "not @wip"
+
+# Combine tags
+npm test -- --tags "@smoke and @login"
 ```
 
-These headers are automatically applied to all requests when using:
-- `helpers.createContext(browser)` - headers merged automatically
-- `getContextOptionsWithHeaders(options)` - utility injected by run.js wrapper
+---
 
-**Precedence (highest to lowest):**
-1. Headers passed directly in `options.extraHTTPHeaders`
-2. Environment variable headers
-3. Playwright defaults
+## Common Patterns
 
-**Use case:** Identify automated traffic so your backend can return LLM-optimized responses (e.g., plain text errors instead of styled HTML).
+### Wait for Network Idle
 
-## Visual Testing
-
-### Screenshots
-
-```javascript
-// Full page screenshot
-await page.screenshot({
-  path: 'screenshot.png',
-  fullPage: true
-});
-
-// Element screenshot
-await page.locator('.chart').screenshot({
-  path: 'chart.png'
-});
-
-// Visual comparison
-await expect(page).toHaveScreenshot('homepage.png');
+```typescript
+await page.waitForLoadState('networkidle');
 ```
 
-## Mobile Testing
+### Wait for Navigation
 
-```javascript
-// Device emulation
-const { devices } = require('playwright');
-const iPhone = devices['iPhone 12'];
-
-const context = await browser.newContext({
-  ...iPhone,
-  locale: 'en-US',
-  permissions: ['geolocation'],
-  geolocation: { latitude: 37.7749, longitude: -122.4194 }
-});
-```
-
-## Debugging
-
-### Debug Mode
-
-```bash
-# Run with inspector
-npx playwright test --debug
-
-# Headed mode
-npx playwright test --headed
-
-# Slow motion
-npx playwright test --headed --slowmo=1000
-```
-
-### In-Code Debugging
-
-```javascript
-// Pause execution
-await page.pause();
-
-// Console logs
-page.on('console', msg => console.log('Browser log:', msg.text()));
-page.on('pageerror', error => console.log('Page error:', error));
-```
-
-## Performance Testing
-
-```javascript
-// Measure page load time
-const startTime = Date.now();
-await page.goto('https://example.com');
-const loadTime = Date.now() - startTime;
-console.log(`Page loaded in ${loadTime}ms`);
-```
-
-## Parallel Execution
-
-```javascript
-// Run tests in parallel
-test.describe.parallel('Parallel suite', () => {
-  test('test 1', async ({ page }) => {
-    // Runs in parallel with test 2
-  });
-
-  test('test 2', async ({ page }) => {
-    // Runs in parallel with test 1
-  });
-});
-```
-
-## Data-Driven Testing
-
-```javascript
-// Parameterized tests
-const testData = [
-  { username: 'user1', password: 'pass1', expected: 'Welcome user1' },
-  { username: 'user2', password: 'pass2', expected: 'Welcome user2' },
-];
-
-testData.forEach(({ username, password, expected }) => {
-  test(`login with ${username}`, async ({ page }) => {
-    await page.goto('/login');
-    await page.fill('#username', username);
-    await page.fill('#password', password);
-    await page.click('button[type="submit"]');
-    await expect(page.locator('.message')).toHaveText(expected);
-  });
-});
-```
-
-## Accessibility Testing
-
-```javascript
-import { injectAxe, checkA11y } from 'axe-playwright';
-
-test('accessibility check', async ({ page }) => {
-  await page.goto('/');
-  await injectAxe(page);
-  await checkA11y(page);
-});
-```
-
-## CI/CD Integration
-
-### GitHub Actions
-
-```yaml
-name: Playwright Tests
-on:
-  push:
-    branches: [main, master]
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-      - name: Install dependencies
-        run: npm ci
-      - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
-      - name: Run tests
-        run: npx playwright test
-```
-
-## Best Practices
-
-1. **Test Organization** - Use descriptive test names, group related tests
-2. **Selector Strategy** - Prefer data-testid attributes, use role-based selectors
-3. **Waiting** - Use Playwright's auto-waiting, avoid hard-coded delays
-4. **Error Handling** - Add proper error messages, take screenshots on failure
-5. **Performance** - Run tests in parallel, reuse authentication state
-
-## Common Patterns & Solutions
-
-### Handling Popups
-
-```javascript
-const [popup] = await Promise.all([
-  page.waitForEvent('popup'),
-  page.click('button.open-popup')
+```typescript
+await Promise.all([
+  page.waitForNavigation(),
+  button.click(),
 ]);
-await popup.waitForLoadState();
 ```
 
-### File Downloads
+### Handle Dialogs
 
-```javascript
-const [download] = await Promise.all([
-  page.waitForEvent('download'),
-  page.click('button.download')
-]);
-await download.saveAs(`./downloads/${download.suggestedFilename()}`);
+```typescript
+page.on('dialog', async dialog => {
+  await dialog.accept();
+  // or dialog.dismiss()
+});
 ```
 
-### iFrames
+### File Upload
 
-```javascript
-const frame = page.frameLocator('#my-iframe');
+```typescript
+await page.setInputFiles('input[type="file"]', 'path/to/file.pdf');
+```
+
+### iFrame Interaction
+
+```typescript
+const frame = page.frameLocator('#iframe-id');
 await frame.locator('button').click();
 ```
 
-### Infinite Scroll
+### Multiple Windows/Tabs
 
-```javascript
-async function scrollToBottom(page) {
-  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-  await page.waitForTimeout(500);
-}
+```typescript
+const [newPage] = await Promise.all([
+  context.waitForEvent('page'),
+  page.click('a[target="_blank"]'),
+]);
+await newPage.waitForLoadState();
 ```
 
-## Troubleshooting
+---
 
-### Common Issues
+## Debugging
 
-1. **Element not found** - Check if element is in iframe, verify visibility
-2. **Timeout errors** - Increase timeout, check network conditions
-3. **Flaky tests** - Use proper waiting strategies, mock external dependencies
-4. **Authentication issues** - Verify auth state is properly saved
+### Pause and Inspect
 
-## Quick Reference Commands
+```typescript
+await page.pause();  // Opens Playwright Inspector
+```
+
+### Console Logs
+
+```typescript
+page.on('console', msg => console.log('Browser:', msg.text()));
+page.on('pageerror', err => console.log('Page Error:', err));
+```
+
+### Screenshot on Demand
+
+```typescript
+await page.screenshot({ path: 'debug.png', fullPage: true });
+```
+
+### Trace Viewer
 
 ```bash
-# Run tests
-npx playwright test
-
-# Run in headed mode
-npx playwright test --headed
-
-# Debug tests
-npx playwright test --debug
-
-# Generate code
-npx playwright codegen https://example.com
-
-# Show report
-npx playwright show-report
+npx playwright show-trace reports/traces/trace-*.zip
 ```
 
-## Additional Resources
+---
 
-- [Playwright Documentation](https://playwright.dev/docs/intro)
-- [API Reference](https://playwright.dev/docs/api/class-playwright)
-- [Best Practices](https://playwright.dev/docs/best-practices)
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `HEADLESS` | `true` | Run browser in headless mode |
+| `SLOWMO` | `0` | Slow down actions by N ms |
+| `CI` | `false` | CI environment (forces headless) |
+| `TIMEOUT` | `60000` | Test timeout in ms |
+| `PARALLEL_WORKERS` | `2` | Number of parallel workers |

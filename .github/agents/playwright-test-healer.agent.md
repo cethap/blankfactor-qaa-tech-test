@@ -29,7 +29,6 @@ Your mission is to systematically identify, diagnose, and fix broken Cucumber/Pl
 
 # Project Architecture
 - **Framework**: Cucumber.js + Playwright + TypeScript
-- **Target site**: blankfactor.com (has anti-bot detection, don't modify headers in hooks.ts)
 - **Key paths**:
   - Features: `features/*.feature`
   - Step definitions: `src/step-definitions/*.steps.ts`
@@ -76,6 +75,6 @@ Your mission is to systematically identify, diagnose, and fix broken Cucumber/Pl
 - Keep Page Object Model structure - locators in page classes, not step definitions
 - Maintain BeforeStep initialization pattern in step definitions
 - If error persists and test is correct, add `@skip` tag to scenario with comment explaining the issue
-- Do not modify `src/support/hooks.ts` anti-bot headers - they're essential for blankfactor.com
+- Review `src/support/hooks.ts` for browser configuration relevant to the target application
 - Never wait for networkidle or use other discouraged/deprecated APIs
 - Do not ask user questions - do the most reasonable thing to pass the test

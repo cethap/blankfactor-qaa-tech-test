@@ -1,26 +1,24 @@
 {
-  "name": "playwright-skill",
-  "version": "4.1.0",
-  "description": "General-purpose browser automation with Playwright for Claude Code with auto-detection and smart test management",
-  "author": "lackeyjb",
+  "name": "playwright-bdd-skill",
+  "version": "1.0.0",
+  "description": "BDD test automation skill for Cucumber + Playwright projects",
   "main": "run.js",
   "scripts": {
-    "setup": "npm install && npx playwright install chromium",
-    "install-all-browsers": "npx playwright install chromium firefox webkit"
+    "test": "node run.js",
+    "test:parallel": "node run.js --parallel",
+    "test:headed": "node run.js --headed",
+    "test:smoke": "node run.js --tags @smoke"
   },
   "keywords": [
     "playwright",
+    "cucumber",
+    "bdd",
     "automation",
-    "browser-testing",
-    "web-automation",
-    "claude-skill",
-    "general-purpose"
+    "testing",
+    "claude-skill"
   ],
-  "dependencies": {
-    "playwright": "^1.57.0"
-  },
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=18.0.0"
   },
   "license": "MIT"
 }

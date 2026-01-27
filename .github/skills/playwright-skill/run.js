@@ -1,228 +1,161 @@
 #!/usr/bin/env node
 /**
- * Universal Playwright Executor for Claude Code
+ * BDD Test Runner - Convenience wrapper for Cucumber tests
  *
- * Executes Playwright automation code from:
- * - File path: node run.js script.js
- * - Inline code: node run.js 'await page.goto("...")'
- * - Stdin: cat script.js | node run.js
- *
- * Ensures proper module resolution by running from skill directory.
+ * Usage:
+ *   node run.js                    # Run all tests
+ *   node run.js --parallel         # Run with parallel workers
+ *   node run.js --tags "@smoke"    # Run specific tags
+ *   node run.js --debug            # Run with fail-fast
+ *   node run.js --headed           # Run with visible browser
  */
 
-const fs = require('fs');
+const { spawn } = require('child_process');
 const path = require('path');
-const { execSync } = require('child_process');
 
-// Change to skill directory for proper module resolution
-process.chdir(__dirname);
+// Get project root (parent of .github/skills/playwright-skill)
+const skillDir = __dirname;
+const projectRoot = path.resolve(skillDir, '../../..');
 
-/**
- * Check if Playwright is installed
- */
-function checkPlaywrightInstalled() {
-  try {
-    require.resolve('playwright');
-    return true;
-  } catch (e) {
-    return false;
-  }
-}
-
-/**
- * Install Playwright if missing
- */
-function installPlaywright() {
-  console.log('📦 Playwright not found. Installing...');
-  try {
-    execSync('npm install', { stdio: 'inherit', cwd: __dirname });
-    execSync('npx playwright install chromium', { stdio: 'inherit', cwd: __dirname });
-    console.log('✅ Playwright installed successfully');
-    return true;
-  } catch (e) {
-    console.error('❌ Failed to install Playwright:', e.message);
-    console.error('Please run manually: cd', __dirname, '&& npm run setup');
-    return false;
-  }
-}
-
-/**
- * Get code to execute from various sources
- */
-function getCodeToExecute() {
+function parseArgs() {
   const args = process.argv.slice(2);
-
-  // Case 1: File path provided
-  if (args.length > 0 && fs.existsSync(args[0])) {
-    const filePath = path.resolve(args[0]);
-    console.log(`📄 Executing file: ${filePath}`);
-    return fs.readFileSync(filePath, 'utf8');
-  }
-
-  // Case 2: Inline code provided as argument
-  if (args.length > 0) {
-    console.log('⚡ Executing inline code');
-    return args.join(' ');
-  }
-
-  // Case 3: Code from stdin
-  if (!process.stdin.isTTY) {
-    console.log('📥 Reading from stdin');
-    return fs.readFileSync(0, 'utf8');
-  }
-
-  // No input
-  console.error('❌ No code to execute');
-  console.error('Usage:');
-  console.error('  node run.js script.js          # Execute file');
-  console.error('  node run.js "code here"        # Execute inline');
-  console.error('  cat script.js | node run.js    # Execute from stdin');
-  process.exit(1);
-}
-
-/**
- * Clean up old temporary execution files from previous runs
- */
-function cleanupOldTempFiles() {
-  try {
-    const files = fs.readdirSync(__dirname);
-    const tempFiles = files.filter(f => f.startsWith('.temp-execution-') && f.endsWith('.js'));
-
-    if (tempFiles.length > 0) {
-      tempFiles.forEach(file => {
-        const filePath = path.join(__dirname, file);
-        try {
-          fs.unlinkSync(filePath);
-        } catch (e) {
-          // Ignore errors - file might be in use or already deleted
-        }
-      });
-    }
-  } catch (e) {
-    // Ignore directory read errors
-  }
-}
-
-/**
- * Wrap code in async IIFE if not already wrapped
- */
-function wrapCodeIfNeeded(code) {
-  // Check if code already has require() and async structure
-  const hasRequire = code.includes('require(');
-  const hasAsyncIIFE = code.includes('(async () => {') || code.includes('(async()=>{');
-
-  // If it's already a complete script, return as-is
-  if (hasRequire && hasAsyncIIFE) {
-    return code;
-  }
-
-  // If it's just Playwright commands, wrap in full template
-  if (!hasRequire) {
-    return `
-const { chromium, firefox, webkit, devices } = require('playwright');
-const helpers = require('./lib/helpers');
-
-// Extra headers from environment variables (if configured)
-const __extraHeaders = helpers.getExtraHeadersFromEnv();
-
-/**
- * Utility to merge environment headers into context options.
- * Use when creating contexts with raw Playwright API instead of helpers.createContext().
- * @param {Object} options - Context options
- * @returns {Object} Options with extraHTTPHeaders merged in
- */
-function getContextOptionsWithHeaders(options = {}) {
-  if (!__extraHeaders) return options;
-  return {
-    ...options,
-    extraHTTPHeaders: {
-      ...__extraHeaders,
-      ...(options.extraHTTPHeaders || {})
-    }
+  const options = {
+    parallel: false,
+    tags: null,
+    debug: false,
+    headed: false,
+    help: false,
   };
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    switch (arg) {
+      case '--parallel':
+      case '-p':
+        options.parallel = true;
+        break;
+      case '--tags':
+      case '-t':
+        options.tags = args[++i];
+        break;
+      case '--debug':
+      case '-d':
+        options.debug = true;
+        break;
+      case '--headed':
+      case '-h':
+        if (args[i] !== '-h' || !args[i + 1]?.startsWith('-')) {
+          options.headed = true;
+        } else {
+          options.help = true;
+        }
+        break;
+      case '--help':
+        options.help = true;
+        break;
+    }
+  }
+
+  return options;
 }
 
-(async () => {
-  try {
-    ${code}
-  } catch (error) {
-    console.error('❌ Automation error:', error.message);
-    if (error.stack) {
-      console.error(error.stack);
-    }
-    process.exit(1);
-  }
-})();
-`;
-  }
+function showHelp() {
+  console.log(`
+BDD Test Runner - Cucumber + Playwright
 
-  // If has require but no async wrapper
-  if (!hasAsyncIIFE) {
-    return `
-(async () => {
-  try {
-    ${code}
-  } catch (error) {
-    console.error('❌ Automation error:', error.message);
-    if (error.stack) {
-      console.error(error.stack);
-    }
-    process.exit(1);
-  }
-})();
-`;
-  }
+Usage:
+  node run.js [options]
 
-  return code;
+Options:
+  --parallel, -p     Run tests with parallel workers
+  --tags, -t <expr>  Run only scenarios matching tag expression
+  --debug, -d        Stop on first failure (fail-fast)
+  --headed           Run with visible browser (HEADLESS=false)
+  --help             Show this help message
+
+Examples:
+  node run.js                          # Run all tests
+  node run.js --parallel               # Run with 2 parallel workers
+  node run.js --tags "@smoke"          # Run smoke tests only
+  node run.js --tags "not @wip"        # Exclude work-in-progress
+  node run.js --headed --debug         # Debug with visible browser
+
+NPM Scripts (run from project root):
+  npm test                             # Run all tests
+  npm run test:parallel                # Run with parallel workers
+  npm run test:debug                   # Run with fail-fast
+  npm run test:report                  # Generate HTML report
+  npm run allure:serve                 # View Allure report
+`);
 }
 
-/**
- * Main execution
- */
-async function main() {
-  console.log('🎭 Playwright Skill - Universal Executor\n');
+function runTests(options) {
+  console.log('🥒 BDD Test Runner - Cucumber + Playwright\n');
 
-  // Clean up old temp files from previous runs
-  cleanupOldTempFiles();
+  // Build command
+  let command = 'npx cucumber-js';
+  const args = [];
 
-  // Check Playwright installation
-  if (!checkPlaywrightInstalled()) {
-    const installed = installPlaywright();
-    if (!installed) {
-      process.exit(1);
-    }
+  if (options.parallel) {
+    args.push('--parallel', '2');
+    console.log('  ⚡ Parallel mode: 2 workers');
   }
 
-  // Get code to execute
-  const rawCode = getCodeToExecute();
-  const code = wrapCodeIfNeeded(rawCode);
-
-  // Create temporary file for execution
-  const tempFile = path.join(__dirname, `.temp-execution-${Date.now()}.js`);
-
-  try {
-    // Write code to temp file
-    fs.writeFileSync(tempFile, code, 'utf8');
-
-    // Execute the code
-    console.log('🚀 Starting automation...\n');
-    require(tempFile);
-
-    // Note: Temp file will be cleaned up on next run
-    // This allows long-running async operations to complete safely
-
-  } catch (error) {
-    console.error('❌ Execution failed:', error.message);
-    if (error.stack) {
-      console.error('\n📋 Stack trace:');
-      console.error(error.stack);
-    }
-    process.exit(1);
+  if (options.tags) {
+    args.push('--tags', options.tags);
+    console.log(`  🏷️  Tags: ${options.tags}`);
   }
+
+  if (options.debug) {
+    args.push('--fail-fast');
+    console.log('  🐛 Debug mode: fail-fast enabled');
+  }
+
+  // Build environment
+  const env = { ...process.env };
+
+  if (options.headed) {
+    env.HEADLESS = 'false';
+    console.log('  👁️  Headed mode: browser visible');
+  }
+
+  console.log(`\n📂 Project: ${projectRoot}\n`);
+  console.log('━'.repeat(50));
+  console.log(`Running: ${command} ${args.join(' ')}`);
+  console.log('━'.repeat(50) + '\n');
+
+  // Run tests
+  const testProcess = spawn(command, args, {
+    cwd: projectRoot,
+    env,
+    stdio: 'inherit',
+    shell: true,
+  });
+
+  testProcess.on('close', code => {
+    console.log('\n' + '━'.repeat(50));
+    if (code === 0) {
+      console.log('✅ Tests completed successfully');
+    } else {
+      console.log(`❌ Tests failed with exit code ${code}`);
+    }
+    console.log('━'.repeat(50));
+
+    // Show helpful commands
+    console.log('\n📊 View Reports:');
+    console.log('   npx playwright show-trace reports/traces/*.zip');
+    console.log('   npm run allure:serve');
+
+    process.exit(code);
+  });
 }
 
-// Run main function
-main().catch(error => {
-  console.error('❌ Fatal error:', error.message);
-  process.exit(1);
-});
+// Main
+const options = parseArgs();
+
+if (options.help) {
+  showHelp();
+  process.exit(0);
+}
+
+runTests(options);

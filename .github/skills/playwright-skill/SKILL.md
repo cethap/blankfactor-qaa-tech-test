@@ -1,453 +1,346 @@
 ---
-name: playwright-skill
-description: Complete browser automation with Playwright. Auto-detects dev servers, writes clean test scripts to /tmp. Test pages, fill forms, take screenshots, check responsive design, validate UX, test login flows, check links, automate any browser task. Use when user wants to test websites, automate browser interactions, validate web functionality, or perform any browser-based testing.
+name: playwright-bdd
+description: BDD test automation with Playwright + Cucumber. Create feature files, step definitions, page objects. Run tests, debug failures, heal broken locators. Use for writing Gherkin scenarios, implementing steps, adding page methods, running test suites, or fixing failing tests.
 ---
 
-**IMPORTANT - Path Resolution:**
-This skill can be installed in different locations (plugin system, manual installation, global, or project-specific). Before executing any commands, determine the skill directory based on where you loaded this SKILL.md file, and use that path in all commands below. Replace `$SKILL_DIR` with the actual discovered path.
+# Playwright BDD Test Automation Skill
 
-Common installation paths:
+This skill helps you work with the Cucumber BDD + Playwright test framework in this project.
 
-- Plugin system: `~/.claude/plugins/marketplaces/playwright-skill/skills/playwright-skill`
-- Manual global: `~/.claude/skills/playwright-skill`
-- Project-specific: `<project>/.claude/skills/playwright-skill`
+## Project Architecture
 
-# Playwright Browser Automation
-
-General-purpose browser automation skill. I'll write custom Playwright code for any automation task you request and execute it via the universal executor.
-
-**CRITICAL WORKFLOW - Follow these steps in order:**
-
-1. **Auto-detect dev servers** - For localhost testing, ALWAYS run server detection FIRST:
-
-   ```bash
-   cd $SKILL_DIR && node -e "require('./lib/helpers').detectDevServers().then(servers => console.log(JSON.stringify(servers)))"
-   ```
-
-   - If **1 server found**: Use it automatically, inform user
-   - If **multiple servers found**: Ask user which one to test
-   - If **no servers found**: Ask for URL or offer to help start dev server
-
-2. **Write scripts to /tmp** - NEVER write test files to skill directory; always use `/tmp/playwright-test-*.js`
-
-3. **Use visible browser by default** - Always use `headless: false` unless user specifically requests headless mode
-
-4. **Parameterize URLs** - Always make URLs configurable via environment variable or constant at top of script
-
-## How It Works
-
-1. You describe what you want to test/automate
-2. I auto-detect running dev servers (or ask for URL if testing external site)
-3. I write custom Playwright code in `/tmp/playwright-test-*.js` (won't clutter your project)
-4. I execute it via: `cd $SKILL_DIR && node run.js /tmp/playwright-test-*.js`
-5. Results displayed in real-time, browser window visible for debugging
-6. Test files auto-cleaned from /tmp by your OS
-
-## Setup (First Time)
-
-```bash
-cd $SKILL_DIR
-npm run setup
+```
+/blankfactor-qaa-tech-test/
+├── features/                    # Gherkin feature files
+│   └── *.feature
+├── src/
+│   ├── core/
+│   │   └── basePage.ts          # Base class for all page objects
+│   ├── pages/                   # Page Object Model classes
+│   │   └── *.page.ts
+│   ├── step-definitions/        # Cucumber step implementations
+│   │   └── *.steps.ts
+│   └── support/
+│       ├── hooks.ts             # Before/After hooks, browser setup
+│       └── world.ts             # CustomWorld with page registry
+├── reports/                     # Test output (traces, screenshots)
+├── cucumber.js                  # Cucumber configuration
+└── package.json                 # NPM scripts
 ```
 
-This installs Playwright and Chromium browser. Only needed once.
-
-## Execution Pattern
-
-**Step 1: Detect dev servers (for localhost testing)**
+## Running Tests
 
 ```bash
-cd $SKILL_DIR && node -e "require('./lib/helpers').detectDevServers().then(s => console.log(JSON.stringify(s)))"
+# Run all tests (default)
+npm test
+
+# Run with parallel workers
+npm run test:parallel
+
+# Run with fail-fast (stop on first failure)
+npm run test:debug
+
+# Generate HTML report
+npm run test:report
+
+# Run for CI (JSON output)
+npm run test:ci
 ```
 
-**Step 2: Write test script to /tmp with URL parameter**
+## Creating a New Feature File
 
-```javascript
-// /tmp/playwright-test-page.js
-const { chromium } = require('playwright');
+Feature files go in `features/` using Gherkin syntax:
 
-// Parameterized URL (detected or user-provided)
-const TARGET_URL = 'http://localhost:3001'; // <-- Auto-detected or from user
+```gherkin
+# features/login.feature
+Feature: User Login
 
-(async () => {
-  const browser = await chromium.launch({ headless: false });
-  const page = await browser.newPage();
+  Background:
+    Given I navigate to "https://example.com"
 
-  await page.goto(TARGET_URL);
-  console.log('Page loaded:', await page.title());
+  Scenario: Successful login with valid credentials
+    When I enter "user@example.com" in the email field
+    And I enter "password123" in the password field
+    And I click the login button
+    Then I should see the dashboard page
+    And the page title should contain "Dashboard"
 
-  await page.screenshot({ path: '/tmp/screenshot.png', fullPage: true });
-  console.log('📸 Screenshot saved to /tmp/screenshot.png');
-
-  await browser.close();
-})();
+  Scenario: Failed login with invalid password
+    When I enter "user@example.com" in the email field
+    And I enter "wrongpassword" in the password field
+    And I click the login button
+    Then I should see an error message "Invalid credentials"
 ```
 
-**Step 3: Execute from skill directory**
+## Creating a Page Object
+
+Page objects go in `src/pages/` and extend `BasePage`:
+
+```typescript
+// src/pages/login.page.ts
+import { Page } from '@playwright/test';
+import { BasePage } from '../core/basePage';
+
+export class LoginPage extends BasePage {
+  // Locators - prefer getByRole, getByLabel, getByText
+  private emailInput = () => this.page.getByLabel('Email');
+  private passwordInput = () => this.page.getByLabel('Password');
+  private loginButton = () => this.page.getByRole('button', { name: 'Login' });
+  private errorMessage = () => this.page.locator('.error-message');
+  private dashboardTitle = () => this.page.getByRole('heading', { level: 1 });
+
+  constructor(page: Page) {
+    super(page);
+  }
+
+  async enterEmail(email: string): Promise<void> {
+    await this.emailInput().fill(email);
+  }
+
+  async enterPassword(password: string): Promise<void> {
+    await this.passwordInput().fill(password);
+  }
+
+  async clickLogin(): Promise<void> {
+    await this.loginButton().click();
+  }
+
+  async getErrorMessage(): Promise<string> {
+    await this.errorMessage().waitFor({ timeout: 5000 });
+    return await this.errorMessage().textContent() || '';
+  }
+
+  async isDashboardVisible(): Promise<boolean> {
+    return await this.dashboardTitle().isVisible();
+  }
+}
+```
+
+## Creating Step Definitions
+
+Step definitions go in `src/step-definitions/` and use the CustomWorld:
+
+```typescript
+// src/step-definitions/login.steps.ts
+import { Given, When, Then, BeforeStep } from '@cucumber/cucumber';
+import { expect } from '@playwright/test';
+import { CustomWorld } from '../support/world';
+import { LoginPage } from '../pages/login.page';
+
+let loginPage: LoginPage;
+
+// Initialize page object once per step (lazy loading via registry)
+BeforeStep(async function (this: CustomWorld) {
+  loginPage = await this.getPage(LoginPage);
+});
+
+When('I enter {string} in the email field', async function (this: CustomWorld, email: string) {
+  await loginPage.enterEmail(email);
+});
+
+When('I enter {string} in the password field', async function (this: CustomWorld, password: string) {
+  await loginPage.enterPassword(password);
+});
+
+When('I click the login button', async function (this: CustomWorld) {
+  await loginPage.clickLogin();
+});
+
+Then('I should see the dashboard page', async function (this: CustomWorld) {
+  const isVisible = await loginPage.isDashboardVisible();
+  expect(isVisible).toBe(true);
+});
+
+Then('I should see an error message {string}', async function (this: CustomWorld, expectedMessage: string) {
+  const actualMessage = await loginPage.getErrorMessage();
+  expect(actualMessage).toContain(expectedMessage);
+});
+
+Then('the page title should contain {string}', async function (this: CustomWorld, expectedTitle: string) {
+  const title = await this.page.title();
+  expect(title).toContain(expectedTitle);
+});
+```
+
+## Locator Best Practices
+
+Prefer accessible, semantic locators (most resilient to UI changes):
+
+```typescript
+// BEST: Role-based selectors
+this.page.getByRole('button', { name: 'Submit' });
+this.page.getByRole('link', { name: 'Industries' });
+this.page.getByRole('heading', { level: 1 });
+this.page.getByRole('textbox', { name: 'Email' });
+
+// GOOD: Label-based (for form inputs)
+this.page.getByLabel('Email');
+this.page.getByPlaceholder('Enter your email');
+
+// GOOD: Text-based (for unique text)
+this.page.getByText('Welcome back');
+this.page.getByText(/sign in/i);  // Case-insensitive regex
+
+// OK: Data attributes (when semantic selectors unavailable)
+this.page.locator('[data-testid="submit-btn"]');
+
+// AVOID: CSS classes and IDs (fragile)
+this.page.locator('.btn-primary');  // Classes change often
+this.page.locator('#submit');       // IDs can be unstable
+```
+
+## Sharing Data Between Steps
+
+Use the CustomWorld's `scenarioData` Map:
+
+```typescript
+// Store data
+When('I copy the text from {string}', async function (this: CustomWorld, element: string) {
+  const text = await this.page.locator(element).textContent();
+  this.setData('copiedText', text);
+});
+
+// Retrieve data
+Then('the copied text should contain {string}', async function (this: CustomWorld, expected: string) {
+  const copiedText = this.getData<string>('copiedText');
+  expect(copiedText).toContain(expected);
+});
+```
+
+## Debugging Failed Tests
+
+### View Playwright Traces
+
+After a test failure, traces are saved to `reports/traces/`:
 
 ```bash
-cd $SKILL_DIR && node run.js /tmp/playwright-test-page.js
+# View a trace file in Playwright Trace Viewer
+npx playwright show-trace reports/traces/trace-*.zip
+```
+
+### View Screenshots
+
+Failure screenshots are saved to `reports/screenshots/`.
+
+### Run in Headed Mode
+
+Set `HEADLESS=false` in `.env` or:
+
+```bash
+HEADLESS=false npm test
+```
+
+### Pause Execution for Debugging
+
+Add to any page object method:
+
+```typescript
+async debugPause(): Promise<void> {
+  await this.pause();  // Opens Playwright Inspector
+}
 ```
 
 ## Common Patterns
 
-### Test a Page (Multiple Viewports)
+### Scrolling to Elements
 
-```javascript
-// /tmp/playwright-test-responsive.js
-const { chromium } = require('playwright');
-
-const TARGET_URL = 'http://localhost:3001'; // Auto-detected
-
-(async () => {
-  const browser = await chromium.launch({ headless: false, slowMo: 100 });
-  const page = await browser.newPage();
-
-  // Desktop test
-  await page.setViewportSize({ width: 1920, height: 1080 });
-  await page.goto(TARGET_URL);
-  console.log('Desktop - Title:', await page.title());
-  await page.screenshot({ path: '/tmp/desktop.png', fullPage: true });
-
-  // Mobile test
-  await page.setViewportSize({ width: 375, height: 667 });
-  await page.screenshot({ path: '/tmp/mobile.png', fullPage: true });
-
-  await browser.close();
-})();
+```typescript
+async scrollToSection(sectionName: string): Promise<void> {
+  const section = this.page.getByRole('heading', { name: sectionName });
+  await section.scrollIntoViewIfNeeded();
+  await section.waitFor({ state: 'visible', timeout: 10000 });
+}
 ```
 
-### Test Login Flow
+### Hover Actions
 
-```javascript
-// /tmp/playwright-test-login.js
-const { chromium } = require('playwright');
-
-const TARGET_URL = 'http://localhost:3001'; // Auto-detected
-
-(async () => {
-  const browser = await chromium.launch({ headless: false });
-  const page = await browser.newPage();
-
-  await page.goto(`${TARGET_URL}/login`);
-
-  await page.fill('input[name="email"]', 'test@example.com');
-  await page.fill('input[name="password"]', 'password123');
-  await page.click('button[type="submit"]');
-
-  // Wait for redirect
-  await page.waitForURL('**/dashboard');
-  console.log('✅ Login successful, redirected to dashboard');
-
-  await browser.close();
-})();
+```typescript
+async hoverOverMenu(menuName: string): Promise<void> {
+  const menu = this.page.getByRole('link', { name: menuName });
+  await menu.hover();
+  await this.page.waitForTimeout(300);  // Wait for dropdown
+}
 ```
 
-### Fill and Submit Form
+### Wait for Navigation
 
-```javascript
-// /tmp/playwright-test-form.js
-const { chromium } = require('playwright');
-
-const TARGET_URL = 'http://localhost:3001'; // Auto-detected
-
-(async () => {
-  const browser = await chromium.launch({ headless: false, slowMo: 50 });
-  const page = await browser.newPage();
-
-  await page.goto(`${TARGET_URL}/contact`);
-
-  await page.fill('input[name="name"]', 'John Doe');
-  await page.fill('input[name="email"]', 'john@example.com');
-  await page.fill('textarea[name="message"]', 'Test message');
-  await page.click('button[type="submit"]');
-
-  // Verify submission
-  await page.waitForSelector('.success-message');
-  console.log('✅ Form submitted successfully');
-
-  await browser.close();
-})();
+```typescript
+async clickAndWaitForNavigation(locator: Locator): Promise<void> {
+  await Promise.all([
+    this.page.waitForLoadState('domcontentloaded'),
+    locator.click(),
+  ]);
+}
 ```
 
-### Check for Broken Links
+### Extract Text from Element
 
-```javascript
-const { chromium } = require('playwright');
-
-(async () => {
-  const browser = await chromium.launch({ headless: false });
-  const page = await browser.newPage();
-
-  await page.goto('http://localhost:3000');
-
-  const links = await page.locator('a[href^="http"]').all();
-  const results = { working: 0, broken: [] };
-
-  for (const link of links) {
-    const href = await link.getAttribute('href');
-    try {
-      const response = await page.request.head(href);
-      if (response.ok()) {
-        results.working++;
-      } else {
-        results.broken.push({ url: href, status: response.status() });
-      }
-    } catch (e) {
-      results.broken.push({ url: href, error: e.message });
-    }
-  }
-
-  console.log(`✅ Working links: ${results.working}`);
-  console.log(`❌ Broken links:`, results.broken);
-
-  await browser.close();
-})();
+```typescript
+async getTileDescription(tileName: string): Promise<string> {
+  const tile = this.page.locator(`[data-tile="${tileName}"]`);
+  await tile.hover();
+  const description = tile.locator('.description');
+  await description.waitFor({ state: 'visible' });
+  return await description.textContent() || '';
+}
 ```
 
-### Take Screenshot with Error Handling
+## Healing Broken Locators
 
-```javascript
-const { chromium } = require('playwright');
+When a test fails due to changed UI:
 
-(async () => {
-  const browser = await chromium.launch({ headless: false });
-  const page = await browser.newPage();
+1. **Check the trace** - View the screenshot/DOM at failure point
+2. **Update the locator** - Prefer getByRole/getByLabel over CSS
+3. **Test the locator** - Run the specific scenario to verify
 
-  try {
-    await page.goto('http://localhost:3000', {
-      waitUntil: 'networkidle',
-      timeout: 10000,
-    });
+Example fix:
+```typescript
+// BEFORE (broken - class changed)
+private submitBtn = () => this.page.locator('.btn-submit');
 
-    await page.screenshot({
-      path: '/tmp/screenshot.png',
-      fullPage: true,
-    });
-
-    console.log('📸 Screenshot saved to /tmp/screenshot.png');
-  } catch (error) {
-    console.error('❌ Error:', error.message);
-  } finally {
-    await browser.close();
-  }
-})();
+// AFTER (resilient - uses role + text)
+private submitBtn = () => this.page.getByRole('button', { name: 'Submit' });
 ```
 
-### Test Responsive Design
+## Adding New Test Scenarios
 
-```javascript
-// /tmp/playwright-test-responsive-full.js
-const { chromium } = require('playwright');
+1. **Add scenario to feature file** in `features/`
+2. **Run test to see undefined steps**: `npm test`
+3. **Copy snippet suggestions** from output
+4. **Implement steps** in `src/step-definitions/`
+5. **Add page methods** if needed in `src/pages/`
+6. **Run test** to verify: `npm test`
 
-const TARGET_URL = 'http://localhost:3001'; // Auto-detected
+## Environment Configuration
 
-(async () => {
-  const browser = await chromium.launch({ headless: false });
-  const page = await browser.newPage();
-
-  const viewports = [
-    { name: 'Desktop', width: 1920, height: 1080 },
-    { name: 'Tablet', width: 768, height: 1024 },
-    { name: 'Mobile', width: 375, height: 667 },
-  ];
-
-  for (const viewport of viewports) {
-    console.log(
-      `Testing ${viewport.name} (${viewport.width}x${viewport.height})`,
-    );
-
-    await page.setViewportSize({
-      width: viewport.width,
-      height: viewport.height,
-    });
-
-    await page.goto(TARGET_URL);
-    await page.waitForTimeout(1000);
-
-    await page.screenshot({
-      path: `/tmp/${viewport.name.toLowerCase()}.png`,
-      fullPage: true,
-    });
-  }
-
-  console.log('✅ All viewports tested');
-  await browser.close();
-})();
-```
-
-## Inline Execution (Simple Tasks)
-
-For quick one-off tasks, you can execute code inline without creating files:
+Copy `.env.example` to `.env` and configure:
 
 ```bash
-# Take a quick screenshot
-cd $SKILL_DIR && node run.js "
-const browser = await chromium.launch({ headless: false });
-const page = await browser.newPage();
-await page.goto('http://localhost:3001');
-await page.screenshot({ path: '/tmp/quick-screenshot.png', fullPage: true });
-console.log('Screenshot saved');
-await browser.close();
-"
+HEADLESS=false          # Show browser window
+SLOWMO=500              # Slow down actions (ms)
+CI=false                # CI mode (headless, no slowmo)
+TIMEOUT=60000           # Test timeout (ms)
+PARALLEL_WORKERS=2      # Parallel execution
 ```
 
-**When to use inline vs files:**
-
-- **Inline**: Quick one-off tasks (screenshot, check if element exists, get page title)
-- **Files**: Complex tests, responsive design checks, anything user might want to re-run
-
-## Available Helpers
-
-Optional utility functions in `lib/helpers.js`:
-
-```javascript
-const helpers = require('./lib/helpers');
-
-// Detect running dev servers (CRITICAL - use this first!)
-const servers = await helpers.detectDevServers();
-console.log('Found servers:', servers);
-
-// Safe click with retry
-await helpers.safeClick(page, 'button.submit', { retries: 3 });
-
-// Safe type with clear
-await helpers.safeType(page, '#username', 'testuser');
-
-// Take timestamped screenshot
-await helpers.takeScreenshot(page, 'test-result');
-
-// Handle cookie banners
-await helpers.handleCookieBanner(page);
-
-// Extract table data
-const data = await helpers.extractTableData(page, 'table.results');
-```
-
-See `lib/helpers.js` for full list.
-
-## Custom HTTP Headers
-
-Configure custom headers for all HTTP requests via environment variables. Useful for:
-
-- Identifying automated traffic to your backend
-- Getting LLM-optimized responses (e.g., plain text errors instead of styled HTML)
-- Adding authentication tokens globally
-
-### Configuration
-
-**Single header (common case):**
+## Allure Reports
 
 ```bash
-PW_HEADER_NAME=X-Automated-By PW_HEADER_VALUE=playwright-skill \
-  cd $SKILL_DIR && node run.js /tmp/my-script.js
+# Generate Allure report
+npm run allure:generate
+
+# Serve report locally
+npm run allure:serve
 ```
 
-**Multiple headers (JSON format):**
+## Quick Reference
 
-```bash
-PW_EXTRA_HEADERS='{"X-Automated-By":"playwright-skill","X-Debug":"true"}' \
-  cd $SKILL_DIR && node run.js /tmp/my-script.js
-```
-
-### How It Works
-
-Headers are automatically applied when using `helpers.createContext()`:
-
-```javascript
-const context = await helpers.createContext(browser);
-const page = await context.newPage();
-// All requests from this page include your custom headers
-```
-
-For scripts using raw Playwright API, use the injected `getContextOptionsWithHeaders()`:
-
-```javascript
-const context = await browser.newContext(
-  getContextOptionsWithHeaders({ viewport: { width: 1920, height: 1080 } }),
-);
-```
-
-## Advanced Usage
-
-For comprehensive Playwright API documentation, see [API_REFERENCE.md](API_REFERENCE.md):
-
-- Selectors & Locators best practices
-- Network interception & API mocking
-- Authentication & session management
-- Visual regression testing
-- Mobile device emulation
-- Performance testing
-- Debugging techniques
-- CI/CD integration
-
-## Tips
-
-- **CRITICAL: Detect servers FIRST** - Always run `detectDevServers()` before writing test code for localhost testing
-- **Custom headers** - Use `PW_HEADER_NAME`/`PW_HEADER_VALUE` env vars to identify automated traffic to your backend
-- **Use /tmp for test files** - Write to `/tmp/playwright-test-*.js`, never to skill directory or user's project
-- **Parameterize URLs** - Put detected/provided URL in a `TARGET_URL` constant at the top of every script
-- **DEFAULT: Visible browser** - Always use `headless: false` unless user explicitly asks for headless mode
-- **Headless mode** - Only use `headless: true` when user specifically requests "headless" or "background" execution
-- **Slow down:** Use `slowMo: 100` to make actions visible and easier to follow
-- **Wait strategies:** Use `waitForURL`, `waitForSelector`, `waitForLoadState` instead of fixed timeouts
-- **Error handling:** Always use try-catch for robust automation
-- **Console output:** Use `console.log()` to track progress and show what's happening
-
-## Troubleshooting
-
-**Playwright not installed:**
-
-```bash
-cd $SKILL_DIR && npm run setup
-```
-
-**Module not found:**
-Ensure running from skill directory via `run.js` wrapper
-
-**Browser doesn't open:**
-Check `headless: false` and ensure display available
-
-**Element not found:**
-Add wait: `await page.waitForSelector('.element', { timeout: 10000 })`
-
-## Example Usage
-
-```
-User: "Test if the marketing page looks good"
-
-Claude: I'll test the marketing page across multiple viewports. Let me first detect running servers...
-[Runs: detectDevServers()]
-[Output: Found server on port 3001]
-I found your dev server running on http://localhost:3001
-
-[Writes custom automation script to /tmp/playwright-test-marketing.js with URL parameterized]
-[Runs: cd $SKILL_DIR && node run.js /tmp/playwright-test-marketing.js]
-[Shows results with screenshots from /tmp/]
-```
-
-```
-User: "Check if login redirects correctly"
-
-Claude: I'll test the login flow. First, let me check for running servers...
-[Runs: detectDevServers()]
-[Output: Found servers on ports 3000 and 3001]
-I found 2 dev servers. Which one should I test?
-- http://localhost:3000
-- http://localhost:3001
-
-User: "Use 3001"
-
-[Writes login automation to /tmp/playwright-test-login.js]
-[Runs: cd $SKILL_DIR && node run.js /tmp/playwright-test-login.js]
-[Reports: ✅ Login successful, redirected to /dashboard]
-```
-
-## Notes
-
-- Each automation is custom-written for your specific request
-- Not limited to pre-built scripts - any browser task possible
-- Auto-detects running dev servers to eliminate hardcoded URLs
-- Test scripts written to `/tmp` for automatic cleanup (no clutter)
-- Code executes reliably with proper module resolution via `run.js`
-- Progressive disclosure - API_REFERENCE.md loaded only when advanced features needed
+| Task | Command/Location |
+|------|-----------------|
+| Run all tests | `npm test` |
+| Run in parallel | `npm run test:parallel` |
+| Add feature | `features/*.feature` |
+| Add steps | `src/step-definitions/*.steps.ts` |
+| Add page object | `src/pages/*.page.ts` |
+| View traces | `npx playwright show-trace reports/traces/*.zip` |
+| View report | `npm run allure:serve` |

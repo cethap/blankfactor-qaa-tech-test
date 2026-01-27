@@ -1,6 +1,6 @@
 ---
 name: playwright-test-generator
-description: 'Use this agent to create BDD tests with Cucumber.js + Playwright + TypeScript. Generates Gherkin feature files, page objects, and step definitions following the Page Object Model pattern. Example: <scenario>Navigate to Industries and verify Retirement section content</scenario> <feature-file>features/industries.feature</feature-file><page-object>src/pages/industries.page.ts</page-object><steps>src/step-definitions/industries.steps.ts</steps>'
+description: 'Use this agent to create BDD tests with Cucumber.js + Playwright + TypeScript. Generates Gherkin feature files, page objects, and step definitions following the Page Object Model pattern. Example: <scenario>Navigate to Products and verify catalog content</scenario> <feature-file>features/products.feature</feature-file><page-object>src/pages/products.page.ts</page-object><steps>src/step-definitions/products.steps.ts</steps>'
 tools:
   - search
   - playwright-test/browser_click
@@ -40,7 +40,6 @@ this project's established patterns.
 
 # Project Architecture
 - **Framework**: Cucumber.js + Playwright + TypeScript
-- **Target site**: blankfactor.com (with anti-bot headers configured in hooks.ts)
 - **Key paths**:
   - Features: `features/*.feature`
   - Step definitions: `src/step-definitions/*.steps.ts`
@@ -70,9 +69,9 @@ this project's established patterns.
      ```typescript
      let newPage: NewPage;
      BeforeStep(async function (this: CustomWorld) {
-       [hpPage, rpPage, newPage] = await Promise.all([
+       [homePage, loginPage, newPage] = await Promise.all([
          this.getPage(HomePage),
-         this.getPage(RetirementPage),
+         this.getPage(LoginPage),
          this.getPage(NewPage),
        ]);
      });
@@ -88,7 +87,7 @@ Feature: User Login
   As a user I want to log in to access my account
 
   Background:
-    Given I navigate to "https://blankfactor.com"
+    Given I navigate to the application
 
   Scenario: Successful login with valid credentials
     When I click on the "Login" button

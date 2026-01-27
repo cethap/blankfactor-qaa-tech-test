@@ -1,0 +1,22 @@
+{
+  "name": "bdd-gherkin-skill",
+  "version": "1.0.0",
+  "description": "BDD best practices skill with Gherkin syntax patterns for Cucumber",
+  "main": "run.js",
+  "scripts": {
+    "validate": "node run.js --validate",
+    "lint": "node run.js --lint"
+  },
+  "keywords": [
+    "bdd",
+    "gherkin",
+    "cucumber",
+    "testing",
+    "best-practices",
+    "claude-skill"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "MIT"
+}
