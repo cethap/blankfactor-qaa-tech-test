@@ -43,8 +43,9 @@ This project enables **AI-powered test automation** where:
 ├── features/                    # CENTRAL KNOWLEDGE - Gherkin scenarios
 │   └── *.feature                # Human-readable test documentation
 ├── src/
-│   ├── pages/                   # Page Objects (UI abstractions)
-│   ├── step-definitions/        # Step implementations
+│   ├── step-definitions/        # THIN - Assertions only
+│   ├── orchestration/           # BUSINESS LOGIC - Workflows
+│   ├── pages/                   # UI LAYER - Element interactions
 │   ├── core/basePage.ts         # Base class for pages
 │   └── support/                 # World, hooks, configuration
 ├── .github/
@@ -54,8 +55,30 @@ This project enables **AI-powered test automation** where:
 │   └── agents/                  # AI AUTOMATION
 │       ├── playwright-test-generator.agent.md
 │       ├── playwright-test-healer.agent.md
-│       └── playwright-test-planner.agent.md
+│       ├── playwright-test-planner.agent.md
+│       └── playwright-test-reviewer.agent.md
 └── reports/                     # Test outputs (traces, screenshots)
+```
+
+## Three-Layer Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Step Definitions (THIN)                                    │
+│  - Call orchestrators                                       │
+│  - Make assertions with expect()                            │
+│  - Store/retrieve scenario data                             │
+├─────────────────────────────────────────────────────────────┤
+│  Orchestration Layer (BUSINESS LOGIC)                       │
+│  - Compose page interactions into workflows                 │
+│  - Handle business logic and flows                          │
+│  - Reusable across different step definitions               │
+├─────────────────────────────────────────────────────────────┤
+│  Page Objects (UI INTERACTIONS)                             │
+│  - Define locators                                          │
+│  - Single-element interactions (click, fill, etc.)          │
+│  - No business logic                                        │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ## Skills (AI Learning Reference)

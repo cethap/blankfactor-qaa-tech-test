@@ -10,23 +10,34 @@ This skill helps you work with the Cucumber BDD + Playwright test framework in t
 ## Project Architecture
 
 ```
-/blankfactor-qaa-tech-test/
-├── features/                    # Gherkin feature files
+/project-root/
+├── features/                    # CENTRAL KNOWLEDGE - Gherkin scenarios
 │   └── *.feature
 ├── src/
-│   ├── core/
-│   │   └── basePage.ts          # Base class for all page objects
-│   ├── pages/                   # Page Object Model classes
-│   │   └── *.page.ts
-│   ├── step-definitions/        # Cucumber step implementations
+│   ├── step-definitions/        # THIN - Assertions only
 │   │   └── *.steps.ts
+│   ├── orchestration/           # BUSINESS LOGIC - Workflows
+│   │   ├── baseOrchestrator.ts
+│   │   └── *.ts
+│   ├── pages/                   # UI LAYER - Element interactions
+│   │   └── *.page.ts
+│   ├── core/
+│   │   └── basePage.ts          # Base class for pages
 │   └── support/
 │       ├── hooks.ts             # Before/After hooks, browser setup
-│       └── world.ts             # CustomWorld with page registry
+│       └── world.ts             # CustomWorld with registries
 ├── reports/                     # Test output (traces, screenshots)
 ├── cucumber.js                  # Cucumber configuration
 └── package.json                 # NPM scripts
 ```
+
+## Three-Layer Architecture
+
+| Layer | Location | Responsibility |
+|-------|----------|----------------|
+| **Step Definitions** | `src/step-definitions/` | THIN: Call orchestrators + assertions |
+| **Orchestration** | `src/orchestration/` | Business workflows, multi-page flows |
+| **Page Objects** | `src/pages/` | UI element interactions only |
 
 ## Running Tests
 
@@ -116,48 +127,79 @@ export class LoginPage extends BasePage {
 }
 ```
 
-## Creating Step Definitions
+## Creating an Orchestrator (Business Logic)
 
-Step definitions go in `src/step-definitions/` and use the CustomWorld:
+Orchestrators go in `src/orchestration/` and compose page interactions:
+
+```typescript
+// src/orchestration/authOrchestrator.ts
+import { Page } from '@playwright/test';
+import { BaseOrchestrator } from './baseOrchestrator';
+import { LoginPage } from '../pages/login.page';
+
+export class AuthOrchestrator extends BaseOrchestrator {
+  private loginPage: LoginPage;
+
+  constructor(page: Page) {
+    super(page);
+    this.loginPage = new LoginPage(page);
+  }
+
+  // Business workflow - combines multiple page interactions
+  async loginWithCredentials(email: string, password: string): Promise<void> {
+    await this.loginPage.enterEmail(email);
+    await this.loginPage.enterPassword(password);
+    await this.loginPage.clickLogin();
+    await this.waitForPageReady();
+    this.log('Login completed', email);
+  }
+
+  async getLoginErrorMessage(): Promise<string> {
+    return await this.loginPage.getErrorMessage();
+  }
+
+  async isDashboardVisible(): Promise<boolean> {
+    return await this.loginPage.isDashboardVisible();
+  }
+}
+```
+
+## Creating Step Definitions (THIN)
+
+Step definitions should be THIN - only orchestrator calls and assertions:
 
 ```typescript
 // src/step-definitions/login.steps.ts
 import { Given, When, Then, BeforeStep } from '@cucumber/cucumber';
 import { expect } from '@playwright/test';
 import { CustomWorld } from '../support/world';
-import { LoginPage } from '../pages/login.page';
+import { AuthOrchestrator } from '../orchestration/authOrchestrator';
 
-let loginPage: LoginPage;
+let auth: AuthOrchestrator;
 
-// Initialize page object once per step (lazy loading via registry)
+// Initialize orchestrator once per step
 BeforeStep(async function (this: CustomWorld) {
-  loginPage = await this.getPage(LoginPage);
+  auth = this.getOrchestrator(AuthOrchestrator);
 });
 
-When('I enter {string} in the email field', async function (this: CustomWorld, email: string) {
-  await loginPage.enterEmail(email);
+// Steps are THIN - just call orchestrator
+When('I login with {string} and {string}', async function (email: string, password: string) {
+  await auth.loginWithCredentials(email, password);
 });
 
-When('I enter {string} in the password field', async function (this: CustomWorld, password: string) {
-  await loginPage.enterPassword(password);
-});
-
-When('I click the login button', async function (this: CustomWorld) {
-  await loginPage.clickLogin();
-});
-
-Then('I should see the dashboard page', async function (this: CustomWorld) {
-  const isVisible = await loginPage.isDashboardVisible();
+// Assertions belong in step definitions
+Then('I should see the dashboard page', async function () {
+  const isVisible = await auth.isDashboardVisible();
   expect(isVisible).toBe(true);
 });
 
-Then('I should see an error message {string}', async function (this: CustomWorld, expectedMessage: string) {
-  const actualMessage = await loginPage.getErrorMessage();
+Then('I should see an error message {string}', async function (expectedMessage: string) {
+  const actualMessage = await auth.getLoginErrorMessage();
   expect(actualMessage).toContain(expectedMessage);
 });
 
 Then('the page title should contain {string}', async function (this: CustomWorld, expectedTitle: string) {
-  const title = await this.page.title();
+  const title = await auth.getPageTitle();
   expect(title).toContain(expectedTitle);
 });
 ```
