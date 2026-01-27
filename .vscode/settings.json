@@ -5,5 +5,14 @@
   "cucumber.glue": [
     "src/step-definitions/**/*.ts",
     "src/support/**/*.ts"
-  ]
+  ],
+  // Ensure test explorer respects individual feature selection
+  "cucumberautocomplete.strictGherkinCompletion": true,
+  "cucumberautocomplete.smartSnippets": true,
+  "cucumberautocomplete.steps": [
+    "src/step-definitions/**/*.ts"
+  ],
+  "cucumberautocomplete.syncfeatures": "features/**/*.feature",
+  // Testing configuration
+  "testing.automaticallyOpenPeekView": "never"
 }

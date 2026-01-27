@@ -1,6 +1,7 @@
 module.exports = {
   default: {
-    paths: ['features/**/*.feature'],
+    // Don't hardcode paths - allows test explorer to run individual features
+    // If no feature path is provided via CLI, defaults to all features
     require: ['src/**/*.ts'],
     requireModule: ['ts-node/register'],
     format: [
@@ -15,5 +16,6 @@ module.exports = {
       resultsDir: 'reports/allure-results'
     },
     publishQuiet: true,
+    parallel: 1,
   }
 };
