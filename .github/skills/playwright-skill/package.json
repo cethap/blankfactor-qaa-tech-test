@@ -8,7 +8,7 @@
     "assertions",
     "testing",
     "best-practices",
-    "claude-skill"
+    "agent-skill"
   ],
   "license": "MIT"
 }

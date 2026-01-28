@@ -13,7 +13,7 @@
     "cucumber",
     "testing",
     "best-practices",
-    "claude-skill"
+    "agent-skill"
   ],
   "engines": {
     "node": ">=18.0.0"

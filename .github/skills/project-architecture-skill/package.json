@@ -8,7 +8,7 @@
     "patterns",
     "orchestration",
     "page-objects",
-    "claude-skill"
+    "agent-skill"
   ],
   "license": "MIT"
 }
