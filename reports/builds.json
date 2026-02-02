@@ -1,9 +1,9 @@
 [
   {
-    "number": 38,
-    "path": "build-38",
-    "url": "build-38/38/index.html",
-    "timestamp": "2026-02-01_03-10-02",
+    "number": 39,
+    "path": "build-39",
+    "url": "build-39/39/index.html",
+    "timestamp": "2026-02-02_03-09-53",
     "attachment": ""
   },
   {
@@ -33,6 +33,13 @@
     "url": "build-4/4/index.html",
     "timestamp": "2026-01-04_20-19-24",
     "attachment": "reports/build-4/4/data/attachments/476074186abbf5ee.zip"
+  },
+  {
+    "number": 38,
+    "path": "build-38",
+    "url": "build-38/38/index.html",
+    "timestamp": "2026-02-01_03-10-02",
+    "attachment": ""
   },
   {
     "number": 37,
@@ -131,12 +138,5 @@
     "url": "build-25/25/index.html",
     "timestamp": "2026-01-20_01-40-04",
     "attachment": ""
-  },
-  {
-    "number": 24,
-    "path": "build-24",
-    "url": "build-24/24/index.html",
-    "timestamp": "2026-01-20_01-11-23",
-    "attachment": "reports/build-24/24/data/attachments/59b5b0ed38aa3dc2.zip"
   }
 ]
